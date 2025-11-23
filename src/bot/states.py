@@ -16,3 +16,5 @@ class MainMenuSM(StatesGroup):
     main = State()
     profile = State()
     events = State()
+    matches_select = State()
+    matches_selected = State()

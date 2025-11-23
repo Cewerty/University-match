@@ -7,7 +7,7 @@ from aiogram_dialog.widgets.kbd import Button, Column, Multiselect, Row, Select
 from aiogram_dialog.widgets.text import Const, Format
 
 from ...states import RegisterSM
-from .getters import get_faculties, get_faculty_groups, get_interests, get_user_data, on_register_dialog_start
+from .getters import get_faculties, get_faculty_groups, get_interests, on_register_dialog_start
 from .handlers import (
     on_contact_received,
     on_faculty_selected,
@@ -118,14 +118,6 @@ interets_select = Window(
     ),
     getter=get_interests,
     state=RegisterSM.interests,
-)
-
-render_info = Window(
-    Format(
-        "Ф.И.О: {user_data.second_name} {user_data.first_name} {user_data.surname}, Факультет: {faculty_name}, Группа: {group_name}, Интересы: {interests_names}"
-    ),
-    getter=get_user_data,
-    state=RegisterSM.render,
 )
 
 register_dialog = Dialog(

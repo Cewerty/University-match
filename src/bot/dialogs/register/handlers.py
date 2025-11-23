@@ -34,17 +34,48 @@ async def send_contact_request(callback: CallbackQuery, button: Button, manager:
 
 
 async def send_interest(callback: CallbackQuery, button: Button, manager: DialogManager):
+    """
+    Финальный хендлер регистрации.
+
+    Предполагается, что номер телефона был сохранен в dialog_data на предыдущих шагах.
+    """
     session = manager.middleware_data["db_session"]
-    telegram_id = int(manager.dialog_data["user_id"])
+
+    # Извлекаем данные из контекста диалога
+    telegram_id = int(
+        manager.dialog_data.get("user_id", callback.from_user.id)
+    )  # Лучше брать из callback, если в data нет
     first_name = manager.dialog_data["first_name"]
     second_name = manager.dialog_data["second_name"]
-    surname = manager.dialog_data["surname"]
+    # surname может быть None, если не ввели
+    surname = manager.dialog_data.get("surname")
+
+    # ⚠️ Важно: убедись, что ключ совпадает с тем, куда ты сохранял телефон ранее ('phone' или 'phone_number')
+    phone_number = manager.dialog_data["phone_number"]
+
     faculty_id = int(manager.dialog_data["faculty_id"])
     group_id = int(manager.dialog_data["group_id"])
     interest_ids = list(map(int, manager.dialog_data["interests"]))
-    await create_user(session, telegram_id, first_name, second_name, surname, faculty_id, group_id, interest_ids)
-    manager.middleware_data["user_id"] = manager.event.from_user.id
+
+    # Вызываем обновленную функцию
+    await create_user(
+        db=session,
+        telegram_id=telegram_id,
+        first_name=first_name,
+        second_name=second_name,
+        surname=surname,
+        phone_number=phone_number,
+        faculty_id=faculty_id,
+        group_id=group_id,
+        interest_ids=interest_ids,
+    )
+
+    # Обновляем middleware данные (если нужно для дальнейшей логики)
+    # Обычно в aiogram-dialog это не обязательно, если диалог завершается
+    manager.middleware_data["user_id"] = telegram_id
+
     await manager.done()
+    # Переход в главное меню
     await manager.start(MainMenuSM.main)
 
 

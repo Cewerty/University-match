@@ -19,6 +19,7 @@ class User(Base):
     first_name = Column(String)
     second_name = Column(String)
     surname = Column(String, nullable=True)
+    phone_number = Column(String)
     interests = relationship("Interest", secondary=user_interest_association, back_populates="users")
     faculty_id = Column(Integer, ForeignKey("faculties.id"))
     group_id = Column(Integer, ForeignKey("groups.id"))

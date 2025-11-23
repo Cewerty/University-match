@@ -42,3 +42,41 @@ async def get_profile_data(**kwargs):
         "group": group_name,
         "interests": interests_names,
     }
+
+
+async def get_user_match(**kwargs: dict[str, Any]):
+    manager: DialogManager = kwargs["dialog_manager"]
+    user_matches_data: list[dict[str, Any]] = manager.dialog_data.get("user_matches")
+    filtered_result = [(item["id"], item["name"]) for item in user_matches_data if item["score"] > 0.2]
+
+    return {
+        "matches": filtered_result,
+    }
+
+
+async def get_match_profile_data(**kwargs):
+    manager: DialogManager = kwargs["dialog_manager"]
+    user_data: User = manager.dialog_data.get("match_data")
+
+    first_name: str = user_data.first_name
+    second_name: str = user_data.second_name
+    surname: str = user_data.surname
+    phone_number: str = user_data.phone_number
+
+    faculty_data: Faculty = manager.dialog_data.get("match_faculty")
+    faculty_name: str = faculty_data.name
+
+    group_data: Group = manager.dialog_data.get("match_group")
+    group_name: str = group_data.name
+
+    interests_names: list[str] = manager.dialog_data.get("match_interests")
+
+    return {
+        "first_name": first_name,
+        "second_name": second_name,
+        "surname": surname,
+        "faculty": faculty_name,
+        "group": group_name,
+        "interests": interests_names,
+        "phone_number": phone_number,
+    }

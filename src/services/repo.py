@@ -6,11 +6,12 @@ from ..core.models import Faculty, Group, Interest, User
 
 
 async def get_user_by_telegram_id(db: AsyncSession, telegram_id: int):
-    result = await db.execute(
-        select(User)
-        .where(User.telegram_id == telegram_id)
-        .options(selectinload(User.interests))  # 👈 Предварительная загрузка
-    )
+    result = await db.execute(select(User).where(User.telegram_id == telegram_id).options(selectinload(User.interests)))
+    return result.scalars().first()
+
+
+async def get_user_by_id(db: AsyncSession, user_id: int):
+    result = await db.execute(select(User).where(User.id == user_id).options(selectinload(User.interests)))
     return result.scalars().first()
 
 
@@ -45,14 +46,13 @@ async def create_user(
     first_name: str,
     second_name: str,
     surname: str,
+    phone_number: str,
     faculty_id: int,
     group_id: int,
     interest_ids: list[int],
 ):
     existing_user_result = await db.execute(
-        select(User)
-        .where(User.telegram_id == telegram_id)
-        .options(selectinload(User.interests))  # 👈 Предварительная загрузка
+        select(User).where(User.telegram_id == telegram_id).options(selectinload(User.interests))
     )
     existing_user = existing_user_result.scalars().first()
 
@@ -60,23 +60,25 @@ async def create_user(
     interests = interests_result.scalars().all()
 
     if existing_user:
-        # Обновляем существующего пользователя
         existing_user.first_name = first_name
         existing_user.second_name = second_name
         existing_user.surname = surname
+        existing_user.phone_number = phone_number
         existing_user.faculty_id = faculty_id
         existing_user.group_id = group_id
-        existing_user.interests = interests  # ✅ Теперь это сработает
+        existing_user.interests = interests
+
         await db.commit()
         await db.refresh(existing_user)
         return existing_user
 
-    # Создаем нового пользователя
+    # Создаем нового
     db_user = User(
         telegram_id=telegram_id,
         first_name=first_name,
         second_name=second_name,
         surname=surname,
+        phone_number=phone_number,
         faculty_id=faculty_id,
         group_id=group_id,
         interests=interests,

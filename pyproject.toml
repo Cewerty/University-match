@@ -12,6 +12,9 @@ dependencies = [
     "fastapi[all]>=0.121.3",
     "sqladmin>=0.21.0",
     "aiosqlite>=0.21.0",
+    "sentence-transformers>=5.1.2",
+    "faiss-cpu>=1.13.0",
+    "numpy>=2.3.5",
 ]
 
 [tool.ruff]
@@ -75,3 +78,8 @@ exclude = ['test_*', '__init__.py']
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.uv]
+dev-dependencies = [
+    "faker>=38.2.0",
+]
