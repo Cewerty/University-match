@@ -1,0 +1,77 @@
+[project]
+name = "university_meeting_bot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.22.0",
+    "aiogram-dialog>=2.4.0",
+    "rich>=14.2.0",
+    "sqlalchemy[asyncio]>=2.0.44",
+    "fastapi[all]>=0.121.3",
+    "sqladmin>=0.21.0",
+    "aiosqlite>=0.21.0",
+]
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "hello.py",
+    "docs"
+]
+line-length = 120
+indent-width = 4
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "E",
+    "F",
+    "UP",
+    "B",
+    "SIM",
+    "I",
+    "C90",
+    "PL",
+    "RUF",
+    "TRY",
+    "ANN",
+    "S",
+    "B",
+    "D",
+    "N",
+    "PL"
+]
+fixable = ["ALL"]
+unfixable = []
+ignore = ["PLR6301", "TRY003", "D212", "D211", "RUF002", "D203", "PLC0414"]
+exclude = ['test_*', '__init__.py']
+
+[tool.ruff.format]
+docstring-code-format = true
