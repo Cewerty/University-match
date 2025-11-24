@@ -1,3 +1,13 @@
+"""
+Define windows and dialog flow for the main menu.
+
+This module declares aiogram-dialog Window instances and composes them into a
+Dialog used to navigate the bot's main sections: profile, events, and interest-
+based matching. It uses Format and Jinja-based templates for rendering dynamic
+content, and wires button callbacks to the corresponding handlers. The dialog
+is started via on_main_menu_dialog_start.
+"""
+
 import operator
 
 from aiogram_dialog import Dialog, Window
@@ -9,7 +19,7 @@ from .getters import get_match_profile_data, get_profile_data, get_user_match, o
 from .handlers import back_to_menu, on_match_selected, on_search_clicked, send_events, send_profile
 
 main_menu_window = Window(
-    Format("С возвращением, {dialog_data[data].second_name} {dialog_data[data].first_name}!"),  # noqa: RUF001
+    Format("С возвращением, {dialog_data[data].second_name} {dialog_data[data].first_name}!"),
     Column(
         Button(Const("Профиль"), id="again_someshit", on_click=send_profile),
         Button(Const("Мероприятия"), id="events", on_click=send_events),

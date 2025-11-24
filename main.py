@@ -1,3 +1,10 @@
+"""
+Main application module for running Telegram bot and FastAPI server concurrently.
+
+This module initializes and configures the Telegram bot with dialogs and middleware,
+sets up the FastAPI application, and starts both services using multiprocessing.
+"""
+
 import multiprocessing
 
 import uvicorn
@@ -27,15 +34,32 @@ setup_dialogs(dp)
 
 
 @dp.message(Command("start"))
-async def start(message: Message, dialog_manager: DialogManager):
+async def start(message: Message, dialog_manager: DialogManager) -> None:
+    """
+    Handle the /start command and initiate registration dialog.
+
+    Args:
+        message: The incoming message object from user.
+        dialog_manager: Dialog manager for controlling dialog flow.
+
+    """
     await dialog_manager.start(RegisterSM.GET_CONTACT, mode=StartMode.RESET_STACK)
 
 
 def run_fastapi(host: str = config.WEB_HOST, port: int = config.WEB_PORT) -> None:
+    """
+    Run FastAPI application using Uvicorn server.
+
+    Args:
+        host: Host address to bind the server. Defaults to config.WEB_HOST.
+        port: Port number to listen on. Defaults to config.WEB_PORT.
+
+    """
     uvicorn.run(app, host=host, port=port)
 
 
 def run_telegram_bot() -> None:
+    """Start polling for Telegram bot updates."""
     dp.run_polling(bot, skip_updates=True)
 
 

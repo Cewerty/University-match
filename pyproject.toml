@@ -1,9 +1,9 @@
 [project]
 name = "university_meeting_bot"
-version = "0.1.0"
+version = "0.1.1"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11,<=3.14"
 dependencies = [
     "aiogram>=3.22.0",
     "aiogram-dialog>=2.4.0",
@@ -15,6 +15,7 @@ dependencies = [
     "sentence-transformers>=5.1.2",
     "faiss-cpu>=1.13.0",
     "numpy>=2.3.5",
+    "alembic>=1.17.2",
 ]
 
 [tool.ruff]
@@ -73,11 +74,19 @@ select = [
 ]
 fixable = ["ALL"]
 unfixable = []
-ignore = ["PLR6301", "TRY003", "D212", "D211", "RUF002", "D203", "PLC0414"]
+ignore = ["PLR6301", "TRY003", "D212", "D211", "RUF002", "D203", "PLC0414", "ANN401", "RUF029", "RUF001"]
 exclude = ['test_*', '__init__.py']
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*.py" = ["D400", "D415"]
+"./seed.py" = ["S311"]
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.alembic]
+script_location = "alembic"
+sqlalchemy.url = "sqlite+aiosqlite:///./test.db"
 
 [tool.uv]
 dev-dependencies = [

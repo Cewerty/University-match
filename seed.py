@@ -1,3 +1,15 @@
+"""
+Seed the local development database with demo data.
+
+This module initializes a synchronous SQLAlchemy engine derived from the project's
+DATABASE_URL (converted from async to sync), and populates the database with:
+- a predefined set of interests,
+- faculties and groups,
+- and 30 users with realistic Russian data using Faker (ru_RU).
+
+If the database already contains 30 or more users, seeding is skipped.
+"""
+
 import random
 
 from faker import Faker
@@ -15,7 +27,19 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 fake = Faker("ru_RU")
 
 
-def seed_data():
+def seed_data() -> None:
+    """
+    Seed the database with demo data.
+
+    Ensures tables are created, inserts interests if missing, creates faculties
+    and groups if absent, and generates 30 users with random attributes and 2–5
+    interests each. If there are already 30 or more users, the operation is
+    skipped.
+
+    Returns:
+        None
+
+    """
     print(f"🚀 Подключение к БД (Sync mode): {sync_db_url}")
     print("🚀 Начало наполнения базы данных...")
 
@@ -24,9 +48,9 @@ def seed_data():
 
     db = SessionLocal()
 
+    user_generations_amount: int = config.SEED_GENERATION_AMOUNT
     try:
-        # Проверка на наличие данных
-        if db.query(User).count() >= 30:
+        if db.query(User).count() >= user_generations_amount:
             print("⚠️ База данных уже содержит достаточно пользователей. Пропускаем.")
             return
 
@@ -91,12 +115,11 @@ def seed_data():
         # --- 3. Генерация пользователей ---
         users_to_create = []
 
-        print("🎲 Генерация 30 пользователей...")
+        print(f"🎲 Генерация {user_generations_amount} пользователей...")
 
         for _ in range(30):
             random_group = random.choice(all_groups)
 
-            # Выбираем от 2 до 5 интересов
             user_interests = random.sample(all_interests_objs, k=random.randint(2, 5))
 
             user = User(
@@ -114,7 +137,7 @@ def seed_data():
         db.add_all(users_to_create)
         db.commit()
 
-        print("🎉 Успешно добавлено 30 пользователей с интересами!")
+        print(f"🎉 Успешно добавлено {user_generations_amount} пользователей с интересами!")
 
     except Exception as e:
         print(f"❌ Произошла ошибка: {e}")
