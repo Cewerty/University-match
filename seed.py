@@ -117,7 +117,7 @@ def seed_data() -> None:
 
         print(f"🎲 Генерация {user_generations_amount} пользователей...")
 
-        for _ in range(30):
+        for _ in range(user_generations_amount):
             random_group = random.choice(all_groups)
 
             user_interests = random.sample(all_interests_objs, k=random.randint(2, 5))

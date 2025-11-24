@@ -18,9 +18,9 @@ from aiogram_dialog import (
     setup_dialogs,
 )
 
-from src.bot import RegisterSM
 from src.bot.dialogs import main_dialog, register_dialog
 from src.bot.middlewares import DatabaseMiddleware
+from src.bot.states import RegisterSM
 from src.core.config import config
 from src.web.app import app
 
