@@ -6,15 +6,16 @@ and REST API endpoints for user matching functionality.
 """
 
 import asyncio
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from fastapi import BackgroundTasks, FastAPI
 from sqladmin import Admin, ModelView
 
-from ..core import Faculty, Group, Interest, User, engine
-from ..core.database import get_session
+from src.core.database import engine, get_session
+from src.core.models import Faculty, Group, Interest, User
+
 from ..services.matcher import matcher_service
 
 
@@ -30,7 +31,7 @@ async def refresh_index_task() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> Generator[None, Any, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Lifespan context manager for FastAPI application.
 
@@ -197,8 +198,8 @@ async def force_reindex(background_tasks: BackgroundTasks) -> dict[str, str]:
     return {"status": "Index update started in background"}
 
 
-@app.get("/search/{user_id}")
-async def search_users(user_id: int) -> dict:
+@app.get("/search/{user_id}", response_model=None)
+async def search_users(user_id: int):
     """
     Search for user matches based on interests similarity.
 

@@ -8,8 +8,7 @@ from typing import Any
 
 from aiogram_dialog import DialogManager, StartMode
 
-from src.bot.states import MainMenuSM
-
+from ....bot.states import MainMenuSM
 from ....services.repo import (
     get_all_faculties,
     get_all_interests,

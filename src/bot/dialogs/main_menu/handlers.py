@@ -14,6 +14,7 @@ from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button
 
+from ....core.config import config
 from ....core.models import User
 from ....services.repo import get_faculty_by_id, get_group_by_id, get_user_by_id
 from ...states import MainMenuSM
@@ -32,13 +33,15 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
         Exception: If connection to search server fails.
 
     """
-    user_data: User = manager.dialog_data.get("data")
+    user_data = manager.dialog_data.get("data")
     user_id = user_data.id
+
+    backend_url: str = config.BACKEND_URL.rstrip("/")
 
     # Обращаемся к локальному API
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(f"http://localhost:8000/search/{user_id}") as resp:
+            async with session.get(f"http://{backend_url}/search/{user_id}") as resp:
                 if resp.status == HTTPStatus.GATEWAY_TIMEOUT:
                     await callback.message.answer("Система еще запускается, попробуй через минуту ⏳")
                     return

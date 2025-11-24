@@ -30,19 +30,21 @@ class Config:
 
     """
 
-    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
     if not BOT_TOKEN:
         raise ValueError("Переменная BOT_TOKEN не найдена в .env!")
 
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./database.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./database.db")
 
-    WEB_HOST = os.getenv("WEB_HOST", "localhost")
+    WEB_HOST: str = os.getenv("WEB_HOST", "localhost")
 
-    WEB_PORT = int(os.getenv("WEB_PORT", "8000"))
+    WEB_PORT: int = int(os.getenv("WEB_PORT", "8000"))
 
-    MINIMAL_MATCH_VALUE = float(os.getenv("MINIMAL_MATCH_VALUE", "0.2"))
+    MINIMAL_MATCH_VALUE: float = float(os.getenv("MINIMAL_MATCH_VALUE", "0.2"))
 
-    SEED_GENERATION_AMOUNT = int(os.getenv("SEED_GENERATION_AMOUNT", "50"))
+    SEED_GENERATION_AMOUNT: int = int(os.getenv("SEED_GENERATION_AMOUNT", "50"))
+
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://web:8000")
 
 
 config = Config()

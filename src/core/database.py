@@ -14,18 +14,23 @@ AsyncSession with automatic commit/rollback handling.
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from ..core.config import config
 
-engine = create_async_engine(
-    config.DATABASE_URL,
-    echo=True,
-    future=True,
-    connect_args={"check_same_thread": False},
-)
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+class Base(DeclarativeBase):
+    """Базовый класс для всех моделей SQLAlchemy."""
+
+    pass
+
+
+engine = create_async_engine(config.DATABASE_URL)
+
+async_session_maker = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+
+async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
 
 
 @asynccontextmanager

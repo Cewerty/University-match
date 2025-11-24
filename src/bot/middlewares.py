@@ -14,10 +14,15 @@ from sqlalchemy import Update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core import get_session
+from ..core.database import async_session_maker
 
 
 class DatabaseMiddleware(BaseMiddleware):
     """Create and inject a database session for each request."""
+
+    def __init__(self) -> None:
+        """Инициализирует middleware с фабрикой сессий."""
+        self.session_maker = async_session_maker
 
     async def __call__(
         self,

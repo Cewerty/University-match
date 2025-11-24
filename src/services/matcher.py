@@ -8,11 +8,13 @@ using semantic similarity with FAISS index and sentence transformer embeddings.
 import asyncio
 from typing import Any
 
-import faiss
+import faiss  # type: ignore
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+# Импортируем твои модели
 from ..core.models import User
 
 
@@ -56,7 +58,7 @@ class UserMatcher:
             self.model = SentenceTransformer(self.model_name)
             print("✅ NLP model loaded.")
 
-    async def update_index(self, session: Any) -> None:
+    async def update_index(self, session: AsyncSession) -> None:
         """
         Update the FAISS index with current user data from database.
 
@@ -121,11 +123,12 @@ class UserMatcher:
         self.index = faiss.IndexFlatL2(dimension)
         self.index.add(embeddings.astype("float32"))
 
+        # Атомарное обновление состояния (подменяем ссылки)
         self.user_vectors = embeddings
         self.index_to_user_id = ids
         self.user_data = data_map
 
-    async def search(self, user_id: int, num_results: int = 3) -> list[dict]:
+    async def search(self, user_id: int, num_results: int = 10) -> list[dict]:
         """
         Search for similar users based on interests.
 
@@ -148,9 +151,10 @@ class UserMatcher:
             return []
 
         try:
+            # Находим внутренний индекс вектора пользователя
             internal_index = self.index_to_user_id.index(user_id)
         except ValueError:
-            return []
+            return []  # Пользователь еще не попал в индекс
 
         query_vector = self.user_vectors[internal_index : internal_index + 1]
 
@@ -178,4 +182,5 @@ class UserMatcher:
         return results
 
 
+# Создаем глобальный экземпляр (Singleton)
 matcher_service = UserMatcher()

@@ -10,8 +10,8 @@ from typing import Any
 
 from aiogram_dialog import DialogManager
 
-from ....core import Faculty, Group, User
 from ....core.config import config
+from ....core.models import Faculty, Group, User
 from ....services import get_faculty_by_id, get_group_by_id, get_user_by_telegram_id
 
 
@@ -46,19 +46,19 @@ async def get_profile_data(**kwargs: Any) -> dict[str, Any]:
 
     """
     manager: DialogManager = kwargs["dialog_manager"]
-    user_data: User = manager.dialog_data.get("data")
+    user_data: Any | User = manager.dialog_data.get("data", User)
 
     first_name: str = user_data.first_name
     second_name: str = user_data.second_name
     surname: str = user_data.surname
 
-    faculty_data: Faculty = manager.dialog_data.get("faculty")
+    faculty_data: Any | Faculty = manager.dialog_data.get("faculty", Faculty)
     faculty_name: str = faculty_data.name
 
-    group_data: Group = manager.dialog_data.get("group")
+    group_data: Any | Group = manager.dialog_data.get("group", Group)
     group_name: str = group_data.name
 
-    interests_names: list[str] = manager.dialog_data.get("interests_names")
+    interests_names: Any | None = manager.dialog_data.get("interests_names")
 
     return {
         "first_name": first_name,
@@ -83,7 +83,7 @@ async def get_user_match(**kwargs: Any) -> dict[str, Any]:
     """
     minimal_match_value = config.MINIMAL_MATCH_VALUE
     manager: DialogManager = kwargs["dialog_manager"]
-    user_matches_data: list[dict[str, Any]] = manager.dialog_data.get("user_matches")
+    user_matches_data: Any | dict[Any, Any] = manager.dialog_data.get("user_matches", {})
     filtered_result = [(item["id"], item["name"]) for item in user_matches_data if item["score"] > minimal_match_value]
 
     return {
@@ -103,20 +103,20 @@ async def get_match_profile_data(**kwargs: Any) -> dict[str, Any]:
 
     """
     manager: DialogManager = kwargs["dialog_manager"]
-    user_data: User = manager.dialog_data.get("match_data")
+    user_data: Any | User = manager.dialog_data.get("match_data", User)
 
     first_name: str = user_data.first_name
     second_name: str = user_data.second_name
-    surname: str = user_data.surname
+    surname: Any | None = user_data.surname
     phone_number: str = user_data.phone_number
 
-    faculty_data: Faculty = manager.dialog_data.get("match_faculty")
+    faculty_data: Any | Faculty = manager.dialog_data.get("match_faculty", Faculty)
     faculty_name: str = faculty_data.name
 
-    group_data: Group = manager.dialog_data.get("match_group")
+    group_data: Any | Group = manager.dialog_data.get("match_group", Group)
     group_name: str = group_data.name
 
-    interests_names: list[str] = manager.dialog_data.get("match_interests")
+    interests_names: Any | list[str] = manager.dialog_data.get("match_interests", list[str])
 
     return {
         "first_name": first_name,
