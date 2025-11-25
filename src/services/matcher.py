@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-# Импортируем твои модели
+from ..core import logger
 from ..core.models import User
 
 
@@ -54,9 +54,9 @@ class UserMatcher:
     def load_model(self) -> None:
         """Load the sentence transformer model."""
         if self.model is None:
-            print("🚀 Start loading NLP model...")
+            logger.info("🚀 Start loading NLP model...")
             self.model = SentenceTransformer(self.model_name)
-            print("✅ NLP model loaded.")
+            logger.info("✅ NLP model loaded.")
 
     async def update_index(self, session: AsyncSession) -> None:
         """
@@ -78,7 +78,7 @@ class UserMatcher:
         users = result.scalars().all()
 
         if not users:
-            print("⚠️ Пользователей нет, индекс не построен.")
+            logger.warning("⚠️ Пользователей нет, индекс не построен.")
             return
 
         texts_to_encode = []
@@ -100,14 +100,14 @@ class UserMatcher:
         if not texts_to_encode:
             return
 
-        print(f"🧠 Векторизация {len(texts_to_encode)} пользователей...")
+        logger.info(f"🧠 Векторизация {len(texts_to_encode)} пользователей...")
         embeddings = await asyncio.to_thread(self.model.encode, texts_to_encode)
 
         await asyncio.to_thread(self._build_faiss_index, embeddings, temp_ids, temp_user_data)
-        print(f"✅ Индекс обновлен. В базе {self.index.ntotal} векторов.")
+        logger.info(f"✅ Индекс обновлен. В базе {self.index.ntotal} векторов.")
 
         self.is_ready = True
-        print("✅ Index updated and ready.")
+        logger.info("✅ Index updated and ready.")
 
     def _build_faiss_index(self, embeddings: Any, ids: Any, data_map: Any) -> None:
         """
@@ -123,17 +123,17 @@ class UserMatcher:
         self.index = faiss.IndexFlatL2(dimension)
         self.index.add(embeddings.astype("float32"))
 
-        # Атомарное обновление состояния (подменяем ссылки)
         self.user_vectors = embeddings
         self.index_to_user_id = ids
         self.user_data = data_map
 
-    async def search(self, user_id: int, num_results: int = 10) -> list[dict]:
+    async def search(self, user_id: int, session: AsyncSession, num_results: int = 10) -> list[dict]:
         """
         Search for similar users based on interests.
 
         Args:
             user_id: ID of the user to find matches for.
+            session: Async database session for updating index if It's not ready
             num_results: Maximum number of results to return.
 
         Returns:
@@ -147,40 +147,52 @@ class UserMatcher:
             Returns empty list if user not found in index or index not built.
 
         """
-        if self.index is None or self.user_vectors is None:
-            return []
-
         try:
-            # Находим внутренний индекс вектора пользователя
+            logger.info(f"🔍 Поиск match-ей для пользователя {user_id}")
+
+            if not self.is_ready or self.index is None or self.user_vectors is None:
+                logger.warning(f"⚠️ Индекс не готов для пользователя {user_id}, запускаем обновление")
+                await self.update_index(session)
+                if not self.is_ready:
+                    logger.error(f"❌ Индекс не удалось обновить для пользователя {user_id}")
+                    return []
+
             internal_index = self.index_to_user_id.index(user_id)
-        except ValueError:
-            return []  # Пользователь еще не попал в индекс
 
-        query_vector = self.user_vectors[internal_index : internal_index + 1]
+            query_vector = self.user_vectors[internal_index : internal_index + 1]
 
-        distances, indices = await asyncio.to_thread(self.index.search, query_vector.astype("float32"), num_results + 1)
-
-        results = []
-        for i, dist in zip(indices[0], distances[0], strict=False):
-            if i == -1:
-                continue
-
-            found_user_id = self.index_to_user_id[i]
-            if found_user_id == user_id:
-                continue
-
-            user_info = self.user_data[found_user_id]
-            results.append(
-                {
-                    "id": found_user_id,
-                    "name": user_info["name"],
-                    "interests": user_info["interests"],
-                    "score": float(1 - dist),
-                }
+            distances, indices = await asyncio.to_thread(
+                self.index.search, query_vector.astype("float32"), num_results + 1
             )
 
-        return results
+            results = []
+            for i, dist in zip(indices[0], distances[0], strict=False):
+                if i == -1:
+                    continue
+
+                found_user_id = self.index_to_user_id[i]
+                if found_user_id == user_id:
+                    continue
+
+                user_info = self.user_data[found_user_id]
+                results.append(
+                    {
+                        "id": found_user_id,
+                        "name": user_info["name"],
+                        "interests": user_info["interests"],
+                        "score": float(1 - dist),
+                    }
+                )
+
+            logger.info(f"✅ Найдено {len(results)} match-ей для пользователя {user_id}")
+            logger.debug(f"📊 Результаты поиска: {results}")
+
+            return results  # noqa: TRY300
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка при поиске match-ей для пользователя {user_id}: {e!r}")
+            logger.exception("🔍 Трейс ошибки поиска match-ей")
+            return []
 
 
-# Создаем глобальный экземпляр (Singleton)
 matcher_service = UserMatcher()

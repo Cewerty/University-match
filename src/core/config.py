@@ -46,5 +46,9 @@ class Config:
 
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://web:8000")
 
+    DEBUG: bool = bool(os.getenv("DEBUG", "True"))
+
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
+
 
 config = Config()

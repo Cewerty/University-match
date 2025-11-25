@@ -17,6 +17,7 @@ dependencies = [
     "numpy>=2.3.5",
     "alembic>=1.17.2",
     "mypy>=1.18.2",
+    "loguru>=0.7.3",
 ]
 
 [tool.ruff]
@@ -91,5 +92,8 @@ sqlalchemy.url = "sqlite+aiosqlite:///./test.db"
 
 [tool.uv]
 dev-dependencies = [
+    "aioresponses>=0.7.8",
     "faker>=38.2.0",
+    "pytest-asyncio>=1.3.0",
+    "pytest>=9.0.1",
 ]

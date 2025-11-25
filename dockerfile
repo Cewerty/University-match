@@ -1,45 +1,38 @@
-# Dockerfile
 FROM python:3.12-slim-bookworm
 
-# Установка системных зависимостей
+# Только необходимые системные пакеты
 RUN apt-get update && apt-get install -y \
     build-essential \
-    curl \
     libpq-dev \
-    gcc \
-    g++ \
-    git \
-    libgl1 \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Установка uv для быстрой установки зависимостей
-RUN pip install uv --no-cache-dir
+# Установка uv (самый быстрый вариант)
+ADD --chmod=755 https://astral.sh/uv/install.sh /install.sh
+RUN /install.sh && rm /install.sh
 
-# Установка рабочей директории
 WORKDIR /app
 
-# Копирование зависимостей для кэширования
+# Копируем зависимости для кэширования
 COPY pyproject.toml uv.lock ./
 
-# Установка зависимостей
+# Установка с оптимизацией для VDS
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --no-cache-dir --requirement pyproject.toml \
-    --compile \
-    --no-binary=:all: faiss-cpu  # Компилируем из исходников для оптимизации
+    UV_INDEX_URL=https://pypi.org/simple \
+    UV_HTTP_TIMEOUT=600 \
+    uv sync \
+    --no-dev \
+    --frozen \
+    --no-editable \
+    --no-compile
 
-# Копирование приложения
+# Копируем код приложения
 COPY . .
 
-# Создание пользователя для безопасности
+# Безопасность
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app && \
-    chmod -R 755 /app
+    chown -R appuser:appuser /app
 
-# Переключение на пользователя
 USER appuser
 
-# Команда запуска
-CMD ["python", "-m", "main.py"]
+CMD ["/app/.venv/bin/python", "main.py"]

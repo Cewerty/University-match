@@ -12,6 +12,7 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 
+from ....core import logger
 from ....services.repo import create_user
 from ...states import MainMenuSM
 
@@ -90,35 +91,44 @@ async def send_interest(callback: CallbackQuery, button: Button, manager: Dialog
         manager (DialogManager): The dialog manager.
 
     """
-    session = manager.middleware_data["db_session"]
+    try:
+        session = manager.middleware_data["db_session"]
 
-    telegram_id = int(manager.dialog_data.get("user_id", callback.from_user.id))
-    first_name = manager.dialog_data["first_name"]
-    second_name = manager.dialog_data["second_name"]
-    surname = manager.dialog_data.get("surname")
+        telegram_id = int(manager.dialog_data.get("user_id", callback.from_user.id))
+        first_name = manager.dialog_data["first_name"]
+        second_name = manager.dialog_data["second_name"]
+        surname = manager.dialog_data.get("surname")
 
-    phone_number = manager.dialog_data["phone_number"]
+        phone_number = manager.dialog_data["phone_number"]
 
-    faculty_id = int(manager.dialog_data["faculty_id"])
-    group_id = int(manager.dialog_data["group_id"])
-    interest_ids = list(map(int, manager.dialog_data["interests"]))
+        faculty_id = int(manager.dialog_data["faculty_id"])
+        group_id = int(manager.dialog_data["group_id"])
+        interest_ids = list(map(int, manager.dialog_data["interests"]))
 
-    await create_user(
-        db=session,
-        telegram_id=telegram_id,
-        first_name=first_name,
-        second_name=second_name,
-        surname=surname,
-        phone_number=phone_number,
-        faculty_id=faculty_id,
-        group_id=group_id,
-        interest_ids=interest_ids,
-    )
+        user = await create_user(
+            db=session,
+            telegram_id=telegram_id,
+            first_name=first_name,
+            second_name=second_name,
+            surname=surname,
+            phone_number=phone_number,
+            faculty_id=faculty_id,
+            group_id=group_id,
+            interest_ids=interest_ids,
+        )
 
-    manager.middleware_data["user_id"] = telegram_id
+        logger.info(f"✅ Пользователь {user.id} успешно зарегистрирован")
+        logger.info(f"🔍 Запуск обновления индекса для нового пользователя {user.id}")
 
-    await manager.done()
-    await manager.start(MainMenuSM.main)
+        manager.middleware_data["user_id"] = telegram_id
+
+        await manager.done()
+        await manager.start(MainMenuSM.main)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка при регистрации пользователя {callback.from_user.id}: {e!r}")
+        logger.exception("📋 Трейс ошибки регистрации")
+        raise
 
 
 async def on_faculty_selected(callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str) -> None:

@@ -7,6 +7,7 @@ including search functionality, match selection, and navigation.
 
 import operator
 from http import HTTPStatus
+import time
 from typing import Any
 
 import aiohttp
@@ -14,6 +15,7 @@ from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button
 
+from ....core import logger
 from ....core.config import config
 from ....core.models import User
 from ....services.repo import get_faculty_by_id, get_group_by_id, get_user_by_id
@@ -37,11 +39,16 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
     user_id = user_data.id
 
     backend_url: str = config.BACKEND_URL.rstrip("/")
-
-    # Обращаемся к локальному API
+    
+    logger.info(f"🌐 HTTP запрос к FastAPI для поиска пользователя {user_id}")
+    logger.debug(f"🔗 URL запроса: http://{backend_url}/search/{user_id}")
+    
+    start_time = time.time()
     async with aiohttp.ClientSession() as session:
         try:
+            elapsed = time.time() - start_time
             async with session.get(f"http://{backend_url}/search/{user_id}") as resp:
+                logger.info(f"⏱️ Ответ от FastAPI получен за {elapsed:.2f} секунд, статус: {resp.status}")
                 if resp.status == HTTPStatus.GATEWAY_TIMEOUT:
                     await callback.message.answer("Система еще запускается, попробуй через минуту ⏳")
                     return

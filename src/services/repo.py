@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ..core import logger
 from ..core.models import Faculty, Group, Interest, User
 
 
@@ -26,8 +27,20 @@ async def get_user_by_telegram_id(db: AsyncSession, telegram_id: int) -> User | 
         User | None: User object with interests loaded, or None if not found.
 
     """
-    result = await db.execute(select(User).where(User.telegram_id == telegram_id).options(selectinload(User.interests)))
-    return result.scalars().first()
+    try:
+        logger.debug(f"🔍 Поиск пользователя по telegram_id: {telegram_id}")
+        result = await db.execute(
+            select(User).where(User.telegram_id == telegram_id).options(selectinload(User.interests))
+        )
+        user = result.scalars().first()
+        if user:
+            logger.info(f"✅ Найден пользователь ID={user.id}, telegram_id={telegram_id}")
+            return user
+        else:
+            logger.warning(f"⚠️ Пользователь с telegram_id={telegram_id} не найден")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при поиске пользователя по telegram_id={telegram_id}: {e!r}")
+        raise
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
@@ -42,8 +55,18 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
         User | None: User object with interests loaded, or None if not found.
 
     """
-    result = await db.execute(select(User).where(User.id == user_id).options(selectinload(User.interests)))
-    return result.scalars().first()
+    try:
+        logger.debug(f"🔍 Поиск пользователя по id: {user_id}")
+        result = await db.execute(select(User).where(User.id == user_id).options(selectinload(User.interests)))
+        user = result.scalars().first()
+        if user:
+            logger.info(f"✅ Найден пользователь ID={user.id}")
+            return user
+        else:
+            logger.warning(f"⚠️ Пользователь с id={user_id} не найден")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при поиске пользователя по id={user_id}: {e!r}")
+        raise
 
 
 async def get_faculty_by_id(db: AsyncSession, faculty_id: int) -> Faculty | None:

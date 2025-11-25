@@ -21,6 +21,7 @@ from aiogram_dialog import (
 from src.bot.dialogs import main_dialog, register_dialog
 from src.bot.middlewares import DatabaseMiddleware
 from src.bot.states import RegisterSM
+from src.core import logger
 from src.core.config import config
 from src.web.app import app
 
@@ -56,14 +57,29 @@ def run_fastapi(host: str = config.WEB_HOST, port: int = config.WEB_PORT) -> Non
 
     """
     uvicorn.run(app, host=host, port=port)
+    try:
+        logger.info("🚀 Launching the FastAPI server...")
+        uvicorn.run("src.web.app:app", host=config.WEB_HOST, port=config.WEB_PORT, reload=False)
+    except Exception as e:
+        logger.critical(f"❌ Critical Error FastAPI: {e!r}", exc_info=True)
+        raise
 
 
 def run_telegram_bot() -> None:
     """Start polling for Telegram bot updates."""
-    dp.run_polling(bot, skip_updates=True)
+    try:
+        logger.info("🤖 Launcing tg-bot...")
+        dp.run_polling(bot, skip_updates=True)
+    except Exception as e:
+        logger.critical(f"❌ Critical error tg-bot: {e!r}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":
+    logger.info("🔧 Initialization app...")
+    logger.info(f"🌐 Configuration: WEB_HOST={config.WEB_HOST}, WEB_PORT={config.WEB_PORT}")
+    logger.info(f"🤖 Tg-bot launcing with token: {config.BOT_TOKEN[:5]}...")
+
     fastapi_process = multiprocessing.Process(target=run_fastapi)
     bot_process = multiprocessing.Process(target=run_telegram_bot)
 

@@ -13,21 +13,38 @@ from typing import ClassVar
 from fastapi import BackgroundTasks, FastAPI
 from sqladmin import Admin, ModelView
 
+from src.core import logger
 from src.core.database import engine, get_session
 from src.core.models import Faculty, Group, Interest, User
 
 from ..services.matcher import matcher_service
 
 
-async def refresh_index_task() -> None:
+async def refresh_index_task(sleep_time: int) -> None:
     """
     Background task to refresh the user matching index.
 
     Fetches current user data from database and updates the FAISS index
     for similarity search.
     """
-    async with get_session() as session:
-        await matcher_service.update_index(session)
+    while True:
+        try:
+            logger.debug("⏳ Проверка необходимости обновления индекса...")
+            async with get_session() as session:
+                await matcher_service.update_index(session)
+
+            user_count = len(matcher_service.index_to_user_id) if matcher_service.index_to_user_id else 0
+            logger.info(f"✅ Индекс успешно обновлен. Всего пользователей: {user_count}")
+
+            await asyncio.sleep(sleep_time)
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка в фоновой задаче обновления: {e!r}")
+            logger.exception("🔄 Трейс ошибки фоновой задачи")
+            await asyncio.sleep(sleep_time / 3)
+
+
+background_tasks = set()
 
 
 @asynccontextmanager
@@ -45,11 +62,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     """
     # --- STARTUP ---
-    print("Admin Panel Starting...")
-    asyncio.create_task(refresh_index_task())  # noqa: RUF006
+    logger.info("Admin Panel Starting...")
+    task = asyncio.create_task(refresh_index_task(30))
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
+    logger.info("Admin Panel has been started and index refreshed!")
     yield
     # --- SHUTDOWN ---
-    print("Shutting down...")
+    logger.info("Shutting down...")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -215,6 +235,6 @@ async def search_users(user_id: int):
     """
     if not matcher_service.is_ready:
         return {"error": "System is warming up, please wait"}, 503
-
-    results = await matcher_service.search(user_id)
+    async with get_session() as session:
+        results = await matcher_service.search(user_id, session)
     return {"results": results}
