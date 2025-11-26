@@ -9,6 +9,7 @@ import asyncio
 from typing import Any
 
 import faiss  # type: ignore
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -108,6 +109,93 @@ class UserMatcher:
 
         self.is_ready = True
         logger.info("✅ Index updated and ready.")
+        
+    async def add_user_to_index(self, session: AsyncSession, user_id: int) -> bool:
+        """
+        Добавляет или обновляет данные одного пользователя в индексе.
+        
+        Args:
+            session: Асинхронная сессия SQLAlchemy
+            user_id: ID пользователя для обновления
+            
+        Returns:
+            bool: True если пользователь успешно добавлен/обновлен
+            
+        """
+        try:
+            # Загружаем модель если еще не загружена
+            if self.model is None:
+                await asyncio.to_thread(self.load_model)
+                
+            # Получаем данные пользователя с интересами
+            query = select(User).options(selectinload(User.interests)).where(User.id == user_id)
+            result = await session.execute(query)
+            user = result.scalar_one_or_none()
+            
+            if not user or not user.interests:
+                logger.error(f"❌ Пользователь {user_id} не найден или у него нет интересов")
+                return False
+                
+            # Подготавливаем данные для пользователя
+            interest_names = [i.name for i in user.interests]
+            text_representation = ", ".join(interest_names)
+            
+            logger.info(f"🔄 Векторизация интересов для пользователя {user_id}...")
+            embedding = await asyncio.to_thread(
+                self.model.encode, 
+                [text_representation],
+                convert_to_tensor=False
+            )
+            
+            # Если индекс еще не создан - создаем его
+            if self.index is None or self.user_vectors is None:
+                await self.update_index(session)
+                return True
+                
+            # Обновляем данные пользователя
+            user_data = {
+                "name": f"{user.first_name} {user.second_name}",
+                "interests": interest_names
+            }
+            
+            # Обновляем или добавляем пользователя в индекс
+            if user_id in self.index_to_user_id:
+                # Обновляем существующего пользователя
+                idx = self.index_to_user_id.index(user_id)
+                # Удаляем старый вектор (FAISS не поддерживает прямое обновление)
+                # Создаем новый индекс без этого вектора
+                vectors = [v for i, v in enumerate(self.user_vectors) if i != idx]
+                ids = [i for i in self.index_to_user_id if i != user_id]
+                
+                # Перестраиваем индекс
+                new_index = faiss.IndexFlatL2(embedding.shape[1])
+                if vectors:
+                    new_index.add(np.vstack(vectors).astype("float32"))
+                
+                # Добавляем новый вектор
+                new_index.add(embedding.astype("float32"))
+                
+                # Обновляем все данные
+                self.index = new_index
+                self.user_vectors = np.vstack([*vectors, embedding[0]])
+                self.index_to_user_id = [*ids, user_id]
+                self.user_data[user_id] = user_data
+            else:
+                # Добавляем нового пользователя
+                self.index.add(embedding.astype("float32"))
+                if self.user_vectors is None:
+                    self.user_vectors = embedding
+                else:
+                    self.user_vectors = np.vstack([self.user_vectors, embedding[0]])
+                self.index_to_user_id.append(user_id)
+                self.user_data[user_id] = user_data
+                
+            logger.info(f"✅ Пользователь {user_id} успешно добавлен в индекс")
+            return True
+        
+        except Exception as e:
+            logger.error(f"❌ Ошибка при добавлении пользователя {user_id} в индекс: {e}")
+            return False
 
     def _build_faiss_index(self, embeddings: Any, ids: Any, data_map: Any) -> None:
         """

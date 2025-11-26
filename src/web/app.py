@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     # --- STARTUP ---
     logger.info("Admin Panel Starting...")
-    task = asyncio.create_task(refresh_index_task(30))
+    task = asyncio.create_task(refresh_index_task(60))
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
     logger.info("Admin Panel has been started and index refreshed!")

@@ -12,10 +12,12 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 
+from ....core.database import get_session
+
 from ....core import logger
 from ....services.repo import create_user
 from ...states import MainMenuSM
-
+from ....services.matcher import matcher_service
 
 async def on_second_name_received(message: Message, message_input: MessageInput, manager: DialogManager) -> None:
     """
@@ -119,7 +121,16 @@ async def send_interest(callback: CallbackQuery, button: Button, manager: Dialog
 
         logger.info(f"✅ Пользователь {user.id} успешно зарегистрирован")
         logger.info(f"🔍 Запуск обновления индекса для нового пользователя {user.id}")
-
+        
+        try:
+            async with get_session() as session:
+                if await matcher_service.add_user_to_index(session, user.id):
+                    logger.info(f"Index для пользователя {user.id} успешно создан")
+                else:
+                    logger.error("Matcher не смог создать индекс")
+        except Exception as e: 
+            logger.error(f"❌ Ошибка при добавлении пользователя {user.id} в индекс: {e!r}")
+        
         manager.middleware_data["user_id"] = telegram_id
 
         await manager.done()
