@@ -8,13 +8,13 @@ from typing import Any
 
 from aiogram_dialog import DialogManager, StartMode
 
-from ....bot.states import MainMenuSM
 from ....services.repo import (
     get_all_faculties,
     get_all_interests,
     get_groups_by_faculty,
     get_user_by_telegram_id,
 )
+from ...states import MainMenuSM
 
 
 async def get_faculties(**kwargs: dict[str, Any]) -> dict[str, Any]:

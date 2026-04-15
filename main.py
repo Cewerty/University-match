@@ -9,6 +9,7 @@ import multiprocessing
 
 import uvicorn
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message
@@ -17,7 +18,6 @@ from aiogram_dialog import (
     StartMode,
     setup_dialogs,
 )
-from aiogram.client.session.aiohttp import AiohttpSession
 
 from src.bot.dialogs import main_dialog, register_dialog
 from src.bot.middlewares import DatabaseMiddleware
@@ -27,7 +27,10 @@ from src.core.config import config
 from src.web.app import app
 
 storage = MemoryStorage()
-bot = Bot(token=config.BOT_TOKEN, session=AiohttpSession(proxy=config.TELEGRAM_PROXY_URL),)
+bot = Bot(
+    token=config.BOT_TOKEN,
+    session=AiohttpSession(proxy=config.TELEGRAM_PROXY_URL),
+)
 dp = Dispatcher(storage=storage)
 dp.update.middleware(DatabaseMiddleware())
 dp.include_router(register_dialog)

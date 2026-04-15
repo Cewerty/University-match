@@ -1,3 +1,10 @@
+"""
+Application logging configuration module.
+
+This module initializes the Loguru logger with custom formats, colors,
+and log levels based on the application configuration.
+"""
+
 import sys
 from logging import Logger
 
@@ -39,4 +46,5 @@ def setup_logger() -> Logger:
     return logger
 
 
-logger: Logger = setup_logger()
+# Initialize the logger
+setup_logger()

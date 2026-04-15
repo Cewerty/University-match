@@ -219,7 +219,7 @@ async def force_reindex(background_tasks: BackgroundTasks) -> dict[str, str]:
 
 
 @app.get("/search/{user_id}", response_model=None)
-async def search_users(user_id: int):
+async def search_users(user_id: int) -> dict[str, list[dict[str, str]]]:
     """
     Search for user matches based on interests similarity.
 

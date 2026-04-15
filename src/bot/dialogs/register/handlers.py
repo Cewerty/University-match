@@ -4,6 +4,7 @@ Module of handlers for the registration dialog.
 Contains functions that handle user actions during the registration process.
 """
 
+import asyncio
 from typing import Any
 
 from aiogram.types import CallbackQuery, Contact, KeyboardButton, Message
@@ -12,12 +13,12 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 
-from ....core.database import get_session
-
 from ....core import logger
-from ....services.repo import create_user
-from ...states import MainMenuSM
 from ....services.matcher import matcher_service
+from ....services.repo import create_user
+from ....web.app import background_tasks
+from ...states import MainMenuSM
+
 
 async def on_second_name_received(message: Message, message_input: MessageInput, manager: DialogManager) -> None:
     """
@@ -121,16 +122,15 @@ async def send_interest(callback: CallbackQuery, button: Button, manager: Dialog
 
         logger.info(f"✅ Пользователь {user.id} успешно зарегистрирован")
         logger.info(f"🔍 Запуск обновления индекса для нового пользователя {user.id}")
-        
+
         try:
-            async with get_session() as session:
-                if await matcher_service.add_user_to_index(session, user.id):
-                    logger.info(f"Index для пользователя {user.id} успешно создан")
-                else:
-                    logger.error("Matcher не смог создать индекс")
-        except Exception as e: 
+            if await matcher_service.add_user_to_index(session, user.id):
+                logger.info(f"Index для пользователя {user.id} успешно создан")
+            else:
+                logger.error("Matcher не смог создать индекс")
+        except Exception as e:
             logger.error(f"❌ Ошибка при добавлении пользователя {user.id} в индекс: {e!r}")
-        
+
         manager.middleware_data["user_id"] = telegram_id
 
         await manager.done()
@@ -139,7 +139,9 @@ async def send_interest(callback: CallbackQuery, button: Button, manager: Dialog
     except Exception as e:
         logger.error(f"❌ Ошибка при регистрации пользователя {callback.from_user.id}: {e!r}")
         logger.exception("📋 Трейс ошибки регистрации")
-        raise
+
+        task = asyncio.create_task(matcher_service.update_index(session))
+        background_tasks.add(task)
 
 
 async def on_faculty_selected(callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str) -> None:

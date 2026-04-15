@@ -1,3 +1,10 @@
+"""
+SQLAlchemy ORM models for the application.
+
+This module defines the database schema and relationships between
+entities such as users, faculties, groups, and interests.
+"""
+
 from sqlalchemy import Column, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -26,7 +33,7 @@ class Faculty(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
     groups: Mapped[list["Group"]] = relationship("Group", back_populates="faculty")
-    
+
     def __str__(self) -> str:
         """Output string for Faculty model."""
         return f"{self.name}"
@@ -43,7 +50,7 @@ class Group(Base):
 
     faculty: Mapped["Faculty"] = relationship("Faculty", back_populates="groups")
     users: Mapped[list["User"]] = relationship("User", back_populates="group")
-    
+
     def __str__(self) -> str:
         """Output string for Group model."""
         return f"{self.name}"
@@ -58,7 +65,7 @@ class Interest(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
     users: Mapped[list["User"]] = relationship("User", secondary=users_interests, back_populates="interests")
-    
+
     def __str__(self) -> str:
         """Output string for Interest model."""
         return f"{self.name}"
@@ -81,7 +88,7 @@ class User(Base):
     faculty: Mapped["Faculty"] = relationship("Faculty")
     group: Mapped["Group"] = relationship("Group", back_populates="users")
     interests: Mapped[list["Interest"]] = relationship("Interest", secondary=users_interests, back_populates="users")
-    
+
     def __str__(self) -> str:
         """Output string for User model."""
         return f"{self.second_name}, {self.first_name}, {self.surname}"

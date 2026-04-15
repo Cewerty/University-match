@@ -39,10 +39,10 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
     user_id = user_data.id
 
     backend_url: str = config.BACKEND_URL.rstrip("/")
-    
+
     logger.info(f"🌐 HTTP запрос к FastAPI для поиска пользователя {user_id}")
     logger.debug(f"🔗 URL запроса: http://{backend_url}/search/{user_id}")
-    
+
     start_time = time.time()
     async with aiohttp.ClientSession() as session:
         try:
@@ -54,38 +54,38 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
                     logger.error(f"🔍 Ошибка API поиска: {resp.status} - {error_text}")
                     await callback.message.answer("Система еще запускается, попробуй через минуту ⏳")
                     return
-                
+
                 if resp.status == HTTPStatus.NOT_FOUND:
                     error_text = await resp.text()
                     logger.error(f"🔍 Ошибка API поиска: {resp.status} - {error_text}")
                     await callback.message.answer(
-                            "📊 Система еще обрабатывает ваши данные...\n\n"
-                            "Пожалуйста, подождите 1-2 минуты и попробуйте снова. "
-                            "Ваш профиль был успешно создан, но для поиска нужны дополнительные вычисления."
-                        )
+                        "📊 Система еще обрабатывает ваши данные...\n\n"
+                        "Пожалуйста, подождите 1-2 минуты и попробуйте снова. "
+                        "Ваш профиль был успешно создан, но для поиска нужны дополнительные вычисления."
+                    )
                     return
-                
+
                 if resp.status != HTTPStatus.OK:
                     error_text = await resp.text()
                     logger.error(f"🔍 Ошибка API поиска: {resp.status} - {error_text}")
                     await callback.message.answer(
-                            "❌ Возникла временная ошибка при поиске.\n\n"
-                            "Мы уже работаем над ее исправлением. Попробуйте снова через минуту."
-                        )
+                        "❌ Возникла временная ошибка при поиске.\n\n"
+                        "Мы уже работаем над ее исправлением. Попробуйте снова через минуту."
+                    )
                     return
 
                 data = await resp.json()
                 results = data.get("results", [])
-                
+
                 if not results:
                     await callback.message.answer(
-                            "🔍 Поиск завершен, но пока нет подходящих совпадений.\n\n"
-                            "Это может быть по нескольким причинам:\n"
-                            "• Система еще обрабатывает ваши данные\n"
-                            "• У вас уникальные интересы, и мы ищем подходящих людей\n"
-                            "• В базе пока мало пользователей с похожими интересами\n\n"
-                            "💡 Совет: обновите поиск через 1-2 минуты или добавьте больше интересов в профиль!"
-                        )
+                        "🔍 Поиск завершен, но пока нет подходящих совпадений.\n\n"
+                        "Это может быть по нескольким причинам:\n"
+                        "• Система еще обрабатывает ваши данные\n"
+                        "• У вас уникальные интересы, и мы ищем подходящих людей\n"
+                        "• В базе пока мало пользователей с похожими интересами\n\n"
+                        "💡 Совет: обновите поиск через 1-2 минуты или добавьте больше интересов в профиль!"
+                    )
                     return
 
                 manager.dialog_data["user_matches"] = results
