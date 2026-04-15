@@ -50,5 +50,7 @@ class Config:
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
 
+    TELEGRAM_PROXY_URL: str = os.getenv("TELEGRAM_PROXY_URL", "")
+
 
 config = Config()
