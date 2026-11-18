@@ -92,7 +92,7 @@ def run_telegram_bot() -> None:
     from src.bot.middlewares import DatabaseMiddleware  # noqa: PLC0415
 
     bot = Bot(
-        token=config.BOT_TOKEN,
+        token=config.require_bot_token(),
         # An empty proxy string is rejected by aiohttp-socks, so pass None when no proxy is configured
         session=AiohttpSession(proxy=config.TELEGRAM_PROXY_URL or None),
     )
@@ -141,5 +141,4 @@ if __name__ == "__main__":
     args = parse_args()
     logger.info(f"🔧 Initialization app, mode: {args.mode}")
     logger.info(f"🌐 Configuration: WEB_HOST={config.WEB_HOST}, WEB_PORT={config.WEB_PORT}")
-    logger.info(f"🤖 Tg-bot token: {config.BOT_TOKEN[:5]}...")
     MODES[args.mode]()
