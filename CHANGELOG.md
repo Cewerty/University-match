@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.2.2 (2026-11-18)
+
+### Bug Fixes
+
+- **bot**: Remove dating wording from the welcome message
+  ([`9a7de60`](https://github.com/Cewerty/University-match/commit/9a7de605fee06ec68ed8910c49b1d21c4d246a1b))
+
+
 ## v0.2.1 (2026-11-18)
 
 ### Bug Fixes
