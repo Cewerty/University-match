@@ -27,6 +27,8 @@ jobs:
       # Well-formed but fake: the image is only started far enough to import the app
       BOT_TOKEN: "123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       IMAGE: university-match:ci
+      # The restrictions compose.yaml applies to every service
+      HARDENED: --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,14 +87,24 @@ jobs:
             echo "| Build time | ${BUILD_SECONDS} s |"
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Smoke test, the application imports
+      # Same restrictions as compose.yaml: catches writes outside /tmp and the volumes
+      # and anything that needs a capability. No BOT_TOKEN: only the bot may need it.
+      - name: Smoke test, the application imports under the compose restrictions
         if: steps.changes.outputs.build == 'true'
-        run: docker run --rm -e BOT_TOKEN "$IMAGE" .venv/bin/python -c "import main"
+        run: docker run --rm $HARDENED "$IMAGE" python -c "import main, src.web.app"
+
+      - name: Smoke test, the bot refuses to start without a token
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          if out=$(docker run --rm $HARDENED "$IMAGE" python main.py bot 2>&1); then
+            echo "the bot started without a token"; exit 1
+          fi
+          echo "$out" | grep -q "BOT_TOKEN is not set"
 
       - name: Smoke test, PyTorch is the CPU build
         if: steps.changes.outputs.build == 'true'
         run: >
-          docker run --rm "$IMAGE" .venv/bin/python -c
+          docker run --rm "$IMAGE" python -c
           "import torch; assert not torch.cuda.is_available(); assert torch.__version__.endswith('+cpu'), torch.__version__; print(torch.__version__)"
 
       - name: Smoke test, runs as uid 10001 that can write its data and nothing else
@@ -105,11 +117,18 @@ jobs:
           && ! touch /app/main.py 2>/dev/null
           && echo "uid $(id -u): data and model cache writable, code read-only"'
 
-      - name: Smoke test, migrations apply
+      # A fresh named volume, as in compose: it must take its ownership from the image
+      - name: Smoke test, migrations apply to a named volume on a read-only root
         if: steps.changes.outputs.build == 'true'
-        run: >
-          docker run --rm -e BOT_TOKEN -e DATABASE_URL=sqlite+aiosqlite:////tmp/ci.db
-          "$IMAGE" .venv/bin/alembic upgrade head
+        run: docker run --rm $HARDENED -v ci-app-data:/app/data "$IMAGE" alembic upgrade head
+
+      - name: No secrets in the image
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          docker run --rm "$IMAGE" sh -c 'test ! -e /app/.env && test ! -e /app/secrets'
+          if docker history --no-trunc --format '{{.CreatedBy}}' "$IMAGE" | grep -Ei '(token|password|secret)[A-Z_]*='; then
+            echo "a layer sets a secret-looking variable"; exit 1
+          fi
 
       # compose.override.yaml builds the dev target; it reuses the builder layers above
       - name: Build the dev target

@@ -36,3 +36,13 @@ updates:
     commit-message:
       prefix: build
       include: scope
+
+  # Image digests in compose.yaml (redis)
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
