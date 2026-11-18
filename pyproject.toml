@@ -9,7 +9,6 @@ requires-python = ">=3.11,<=3.14"
 dependencies = [
     "aiogram>=3.22.0",
     "aiogram-dialog>=2.4.0",
-    "rich>=14.2.0",
     "sqlalchemy[asyncio]>=2.0.44",
     "fastapi[all]>=0.121.3",
     "sqladmin>=0.21.0",
@@ -24,6 +23,9 @@ dependencies = [
     "aiohttp-socks>=0.11.0",
     "faker>=38.2.0",
     "redis>=5.0",
+    "aiohttp>=3.14.5",
+    "python-dotenv>=1.2.4",
+    "uvicorn>=0.54.0",
 ]
 
 [tool.ruff]
@@ -165,10 +167,25 @@ torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [dependency-groups]
 dev = [
+    "deptry>=0.25.1",
     "mypy>=1.18.2",
     "pre-commit>=4.7",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.1.0",
     "pytest>=9.0.1",
+    "pyyaml>=6.0.3",
     "ruff>=0.14.5,<0.15",
 ]
+
+[tool.deptry]
+known_first_party = ["src"]
+
+[tool.deptry.per_rule_ignores]
+# Declared but never imported, on purpose:
+#   torch          only so that [tool.uv.sources] takes the CPU build (sentence-transformers imports it)
+#   redis          backend of aiogram's RedisStorage (main.py creates it from REDIS_URL)
+#   aiosqlite      SQLAlchemy driver, chosen by the sqlite+aiosqlite:// URL
+#   aiohttp-socks  aiogram's AiohttpSession uses it for TELEGRAM_PROXY_URL
+DEP002 = ["torch", "redis", "aiosqlite", "aiohttp-socks"]
+# scripts/ci/check_compose_policy.py imports PyYAML only for YAML input in tests; CI passes JSON
+DEP004 = ["yaml"]

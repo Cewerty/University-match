@@ -45,6 +45,10 @@ jobs:
     needs: [workflows-lint, pyproject]
     uses: ./.github/workflows/tests.yml
 
+  dependencies:
+    needs: [workflows-lint, pyproject]
+    uses: ./.github/workflows/dependencies.yml
+
   # The image is heavy (torch), so it is built only when something that goes into it changed
   changes:
     needs: [workflows-lint, yamllint]
@@ -224,7 +228,7 @@ jobs:
   # Runs only on main and only after every check above has passed
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, tests, docker, podman]
+    needs: [lint, tests, dependencies, docker, podman]
     runs-on: ubuntu-latest
     permissions:
       contents: write
