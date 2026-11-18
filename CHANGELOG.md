@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.2.1 (2026-11-18)
+
+### Bug Fixes
+
+- **bot**: Accept only the sender's own contact at registration
+  ([`3d759e2`](https://github.com/Cewerty/University-match/commit/3d759e236f6b340e0f5df7e9e304c3bc4beeaf98))
+
+
 ## v0.2.0 (2026-11-18)
 
 ### Bug Fixes
