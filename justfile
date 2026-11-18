@@ -20,6 +20,7 @@ python := if os() == "windows" { "python" } else { "python3" }
 # Linters run with uvx at pinned versions (no project install needed)
 actionlint := "uvx --from actionlint-py==1.7.12.25 actionlint"
 zizmor := "uvx zizmor==1.32.0"
+pip_audit := "uvx pip-audit==2.10.1"
 hadolint := "uvx --from hadolint-py==2.15.1.3 hadolint"
 yamllint := "uvx yamllint==1.38.0"
 validate_pyproject := "uvx --from 'validate-pyproject[all]==0.27' validate-pyproject"
@@ -129,6 +130,31 @@ validate-pyproject:
 # All configuration linters
 [group('gate')]
 config-lint: lint-dockerfile yamllint validate-pyproject
+
+# Unused, missing and transitive dependencies: imports vs pyproject.toml ([tool.deptry])
+[group('gate')]
+deptry:
+    uv run --frozen deptry .
+
+# Known vulnerabilities in all locked packages, dev group included (accepted ones: --ignore-vuln ID below)
+[group('gate')]
+audit:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    work=$(mktemp -d)
+    trap 'rm -rf "$work"' EXIT
+    uv export --frozen --format requirements-txt --no-hashes --all-groups --no-emit-project > "$work/requirements.txt"
+    # --no-deps: the export is the complete pinned set; torch==...+cpu is not on PyPI and is skipped
+    # (Trivy covers it in the image)
+    status=0
+    {{ pip_audit }} -r "$work/requirements.txt" --disable-pip --no-deps --progress-spinner off         --format markdown --output "$work/report.md" || status=$?
+    # No report file is written when nothing is found
+    [ -s "$work/report.md" ] || echo "No known vulnerabilities found." > "$work/report.md"
+    cat "$work/report.md"
+    if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+        { echo "### pip-audit"; cat "$work/report.md"; } >> "$GITHUB_STEP_SUMMARY"
+    fi
+    exit "$status"
 
 # ---- the application, without containers ---------------------------------------------
 
