@@ -8,9 +8,9 @@ from typing import Any
 
 from aiogram.types import CallbackQuery, KeyboardButton, Message
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
-from aiogram_dialog import DialogManager
+from aiogram_dialog import ChatEvent, DialogManager
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Button
+from aiogram_dialog.widgets.kbd import Button, ManagedMultiselect
 
 from ....core import logger
 from ....services.repo import create_user
@@ -170,15 +170,17 @@ async def on_group_selected(callback: CallbackQuery, widget: Any, manager: Dialo
     await manager.next()
 
 
-async def on_interest_selected(callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str) -> None:
+async def on_interest_selected(
+    event: ChatEvent, widget: ManagedMultiselect[str], manager: DialogManager, item_id: str
+) -> None:
     """
     Handle interest (checkbox) selection changes.
 
     Retrieves the list of checked interests from the widget and stores it in dialog_data.
 
     Args:
-        callback (CallbackQuery): The callback query that triggered this handler.
-        widget (Any): The widget instance (should support get_checked()).
+        event (ChatEvent): The event that triggered this handler.
+        widget (ManagedMultiselect[str]): The multiselect widget; its checked items are read from it.
         manager (DialogManager): The dialog manager.
         item_id (str): The id of the toggled interest item.
 
