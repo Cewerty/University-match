@@ -6,14 +6,17 @@ and log levels based on the application configuration.
 """
 
 import sys
-from logging import Logger
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from .config import config
 
+if TYPE_CHECKING:
+    from loguru import Logger
 
-def setup_logger() -> Logger:
+
+def setup_logger() -> "Logger":
     """Logger settings."""
     logger.remove()
 

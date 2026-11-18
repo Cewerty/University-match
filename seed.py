@@ -51,6 +51,8 @@ def generate_unique_group_name(faculty: Faculty, existing_names: list[str]) -> s
         if group_name not in existing_names:
             return group_name
 
+    return None
+
 
 def _seed_interests(db: Session) -> list[Interest]:
     """Seed interests into the database."""
