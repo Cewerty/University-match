@@ -23,6 +23,10 @@ jobs:
       - name: Install dev tools
         run: uv sync --frozen --only-dev
 
+      # Fails if pyproject.toml was changed without updating uv.lock
+      - name: Check the lock file is up to date
+        run: uv lock --check
+
       - name: Lint
         run: uv run --frozen --no-sync ruff check . --output-format=github
 
