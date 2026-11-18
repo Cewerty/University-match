@@ -15,28 +15,35 @@ from aiogram_dialog.widgets.kbd import Back, Button, Column, Select
 from aiogram_dialog.widgets.text import Const, Format, Jinja
 
 from ...states import MainMenuSM
-from .getters import get_match_profile_data, get_profile_data, get_user_match, on_main_menu_dialog_start
+from .getters import (
+    get_main_menu_data,
+    get_match_profile_data,
+    get_profile_data,
+    get_user_match,
+    on_main_menu_dialog_start,
+)
 from .handlers import back_to_menu, on_match_selected, on_search_clicked, send_events, send_profile
 
 main_menu_window = Window(
-    Format("С возвращением, {dialog_data[data].second_name} {dialog_data[data].first_name}!"),
+    Format("С возвращением, {profile.second_name} {profile.first_name}!"),
     Column(
-        Button(Const("Профиль"), id="again_someshit", on_click=send_profile),
+        Button(Const("Профиль"), id="profile", on_click=send_profile),
         Button(Const("Мероприятия"), id="events", on_click=send_events),
-        Button(Const("Поиск по интересам"), id="and_again_someshit", on_click=on_search_clicked),
+        Button(Const("Поиск по интересам"), id="search", on_click=on_search_clicked),
     ),
     state=MainMenuSM.main,
+    getter=get_main_menu_data,
 )
 
 profile_html = Jinja("""
-<b>{{second_name}} {{first_name}} {{surname}}</b>
+<b>{{profile.full_name}}</b>
 
-Факультет: {{faculty}}
+Факультет: {{profile.faculty}}
 
-Группа: {{group}}
+Группа: {{profile.group}}
 
 Ваши интересы:
-{% for interest in interests %}
+{% for interest in profile.interests %}
 — {{interest}}
 {% endfor %}
 """)
@@ -65,10 +72,10 @@ match_select_window = Window(
     Const("Результаты поиска:"),
     Column(
         Select(
-            Format("{item[1]}"),
+            Format("{item.name}"),
             id="s_matches",
             items="matches",
-            item_id_getter=operator.itemgetter(0),
+            item_id_getter=operator.attrgetter("id"),
             on_click=on_match_selected,
         ),
         Button(Const("В главное меню"), id="from_profile_to_main_menu", on_click=back_to_menu),
@@ -78,14 +85,14 @@ match_select_window = Window(
 )
 
 match_html = Jinja("""
-<b>{{phone_number}}</b>: <b>{{second_name}} {{first_name}}</b>
+<b>{{profile.phone_number}}</b>: <b>{{profile.full_name}}</b>
 
-Факультет: {{faculty}}
+Факультет: {{profile.faculty}}
 
-Группа: {{group}}
+Группа: {{profile.group}}
 
 Интересы:
-{% for interest in interests %}
+{% for interest in profile.interests %}
 — {{interest}}
 {% endfor %}
 """)

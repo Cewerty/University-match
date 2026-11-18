@@ -5,7 +5,6 @@ This module contains callback handlers for user interactions in the main menu,
 including search functionality, match selection, and navigation.
 """
 
-import operator
 import time
 from http import HTTPStatus
 from typing import Any
@@ -17,9 +16,11 @@ from aiogram_dialog.widgets.kbd import Button
 
 from ....core import logger
 from ....core.config import config
-from ....core.models import User
-from ....services.repo import get_faculty_by_id, get_group_by_id, get_user_by_id
+from ....core.value_objects import MatchCandidate, UserProfile
+from ....services.repo import get_user_by_id
 from ...states import MainMenuSM
+from .getters import load_profile
+from .keys import MATCH_PROFILE, MATCHES, PROFILE
 
 
 async def on_search_clicked(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
@@ -35,21 +36,19 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
         Exception: If connection to search server fails.
 
     """
-    user_data = manager.dialog_data.get("data")
-    user_id = user_data.id
-
-    backend_url: str = config.BACKEND_URL.rstrip("/")
+    user_id = UserProfile.from_dict(manager.dialog_data[PROFILE]).id
+    search_url = f"{config.BACKEND_URL}/search/{user_id}"
 
     logger.info(f"🌐 HTTP запрос к FastAPI для поиска пользователя {user_id}")
-    logger.debug(f"🔗 URL запроса: http://{backend_url}/search/{user_id}")
+    logger.debug(f"🔗 URL запроса: {search_url}")
 
-    start_time = time.time()
+    start_time = time.perf_counter()
     async with aiohttp.ClientSession() as session:
         try:
-            elapsed = time.time() - start_time
-            async with session.get(f"http://{backend_url}/search/{user_id}") as resp:
+            async with session.get(search_url) as resp:
+                elapsed = time.perf_counter() - start_time
                 logger.info(f"⏱️ Ответ от FastAPI получен за {elapsed:.2f} секунд, статус: {resp.status}")
-                if resp.status == HTTPStatus.GATEWAY_TIMEOUT:
+                if resp.status == HTTPStatus.SERVICE_UNAVAILABLE:
                     error_text = await resp.text()
                     logger.error(f"🔍 Ошибка API поиска: {resp.status} - {error_text}")
                     await callback.message.answer("Система еще запускается, попробуй через минуту ⏳")
@@ -88,7 +87,7 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
                     )
                     return
 
-                manager.dialog_data["user_matches"] = results
+                manager.dialog_data[MATCHES] = [MatchCandidate.from_api(item).to_dict() for item in results]
                 await manager.switch_to(MainMenuSM.matches_select)
 
         except Exception:
@@ -108,12 +107,13 @@ async def on_match_selected(callback: CallbackQuery, widget: Any, manager: Dialo
     """
     session = manager.middleware_data["db_session"]
 
-    match_data: User = await get_user_by_id(session, item_id)
+    match_user = await get_user_by_id(session, int(item_id))
+    if match_user is None:
+        await callback.answer("Пользователь не найден", show_alert=True)
+        return
 
-    manager.dialog_data["match_data"] = match_data
-    manager.dialog_data["match_group"] = await get_group_by_id(session, match_data.group_id)
-    manager.dialog_data["match_faculty"] = await get_faculty_by_id(session, match_data.faculty_id)
-    manager.dialog_data["match_interests"] = list(map(operator.attrgetter("name"), match_data.interests))
+    profile = await load_profile(session, match_user)
+    manager.dialog_data[MATCH_PROFILE] = profile.to_dict()
 
     await manager.next()
 
