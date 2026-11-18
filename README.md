@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/Cewerty/University-match/actions/workflows/ci.yml/badge.svg)](https://github.com/Cewerty/University-match/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Cewerty/University-match)](https://github.com/Cewerty/University-match/releases)
+[![Python](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FCewerty%2FUniversity-match%2Fmain%2Fpyproject.toml)](pyproject.toml)
 
 A Telegram bot that helps university students find people with similar interests.
 A student registers (contact, name, faculty, group, interests), and the bot suggests
