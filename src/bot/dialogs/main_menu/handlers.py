@@ -18,6 +18,7 @@ from ....core import logger
 from ....core.config import config
 from ....core.value_objects import MatchCandidate, UserProfile
 from ....services.repo import get_user_by_id
+from ...messaging import answer_in_chat
 from ...states import MainMenuSM
 from .getters import load_profile
 from .keys import MATCH_PROFILE, MATCHES, PROFILE
@@ -51,25 +52,27 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
                 if resp.status == HTTPStatus.SERVICE_UNAVAILABLE:
                     error_text = await resp.text()
                     logger.error(f"🔍 Ошибка API поиска: {resp.status} - {error_text}")
-                    await callback.message.answer("Система еще запускается, попробуй через минуту ⏳")
+                    await answer_in_chat(callback, "Система еще запускается, попробуй через минуту ⏳")
                     return
 
                 if resp.status == HTTPStatus.NOT_FOUND:
                     error_text = await resp.text()
                     logger.error(f"🔍 Ошибка API поиска: {resp.status} - {error_text}")
-                    await callback.message.answer(
+                    await answer_in_chat(
+                        callback,
                         "📊 Система еще обрабатывает ваши данные...\n\n"
                         "Пожалуйста, подождите 1-2 минуты и попробуйте снова. "
-                        "Ваш профиль был успешно создан, но для поиска нужны дополнительные вычисления."
+                        "Ваш профиль был успешно создан, но для поиска нужны дополнительные вычисления.",
                     )
                     return
 
                 if resp.status != HTTPStatus.OK:
                     error_text = await resp.text()
                     logger.error(f"🔍 Ошибка API поиска: {resp.status} - {error_text}")
-                    await callback.message.answer(
+                    await answer_in_chat(
+                        callback,
                         "❌ Возникла временная ошибка при поиске.\n\n"
-                        "Мы уже работаем над ее исправлением. Попробуйте снова через минуту."
+                        "Мы уже работаем над ее исправлением. Попробуйте снова через минуту.",
                     )
                     return
 
@@ -77,13 +80,14 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
                 results = data.get("results", [])
 
                 if not results:
-                    await callback.message.answer(
+                    await answer_in_chat(
+                        callback,
                         "🔍 Поиск завершен, но пока нет подходящих совпадений.\n\n"
                         "Это может быть по нескольким причинам:\n"
                         "• Система еще обрабатывает ваши данные\n"
                         "• У вас уникальные интересы, и мы ищем подходящих людей\n"
                         "• В базе пока мало пользователей с похожими интересами\n\n"
-                        "💡 Совет: обновите поиск через 1-2 минуты или добавьте больше интересов в профиль!"
+                        "💡 Совет: обновите поиск через 1-2 минуты или добавьте больше интересов в профиль!",
                     )
                     return
 
@@ -91,7 +95,7 @@ async def on_search_clicked(callback: CallbackQuery, button: Button, manager: Di
                 await manager.switch_to(MainMenuSM.matches_select)
 
         except Exception:
-            await callback.message.answer("Ошибка соединения с сервером поиска")
+            await answer_in_chat(callback, "Ошибка соединения с сервером поиска")
 
 
 async def on_match_selected(callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str) -> None:

@@ -47,3 +47,13 @@ async def test_message_without_sender_is_rejected() -> None:
 
     assert "phone_number" not in manager.dialog_data
     manager.next.assert_not_awaited()
+
+
+async def test_message_without_contact_is_rejected() -> None:
+    message, manager = make_update(contact_user_id=SENDER_ID)
+    message.contact = None
+
+    await on_contact_received(message, None, manager)
+
+    assert "phone_number" not in manager.dialog_data
+    manager.next.assert_not_awaited()
