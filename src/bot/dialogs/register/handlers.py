@@ -4,7 +4,6 @@ Module of handlers for the registration dialog.
 Contains functions that handle user actions during the registration process.
 """
 
-import asyncio
 from typing import Any
 
 from aiogram.types import CallbackQuery, Contact, KeyboardButton, Message
@@ -14,9 +13,8 @@ from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 
 from ....core import logger
-from ....services.matcher import matcher_service
 from ....services.repo import create_user
-from ....web.app import background_tasks
+from ...backend import request_reindex
 from ...states import MainMenuSM
 
 
@@ -121,15 +119,7 @@ async def send_interest(callback: CallbackQuery, button: Button, manager: Dialog
         )
 
         logger.info(f"✅ Пользователь {user.id} успешно зарегистрирован")
-        logger.info(f"🔍 Запуск обновления индекса для нового пользователя {user.id}")
-
-        try:
-            if await matcher_service.add_user_to_index(session, user.id):
-                logger.info(f"Index для пользователя {user.id} успешно создан")
-            else:
-                logger.error("Matcher не смог создать индекс")
-        except Exception as e:
-            logger.error(f"❌ Ошибка при добавлении пользователя {user.id} в индекс: {e!r}")
+        await request_reindex()
 
         manager.middleware_data["user_id"] = telegram_id
 
@@ -139,9 +129,6 @@ async def send_interest(callback: CallbackQuery, button: Button, manager: Dialog
     except Exception as e:
         logger.error(f"❌ Ошибка при регистрации пользователя {callback.from_user.id}: {e!r}")
         logger.exception("📋 Трейс ошибки регистрации")
-
-        task = asyncio.create_task(matcher_service.update_index(session))
-        background_tasks.add(task)
 
 
 async def on_faculty_selected(callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str) -> None:
@@ -209,7 +196,7 @@ async def on_other_messages(message: Message, message_input: MessageInput, manag
         manager (DialogManager): The dialog manager.
 
     """
-    await message.answer("Please input correct value.")
+    await message.answer("Не получилось разобрать сообщение. Пожалуйста, введи корректное значение.")
 
 
 async def on_contact_received(message: Message, message_input: MessageInput, manager: DialogManager) -> None:

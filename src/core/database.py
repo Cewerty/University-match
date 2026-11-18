@@ -9,26 +9,18 @@ the application. It exposes:
 
 Use get_session() as an async context manager to obtain a per-operation
 AsyncSession with automatic commit/rollback handling.
+
+The declarative Base for ORM models lives in src.core.models.
 """
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
 
 from ..core.config import config
 
-
-class Base(DeclarativeBase):
-    """Базовый класс для всех моделей SQLAlchemy."""
-
-    pass
-
-
 engine = create_async_engine(config.DATABASE_URL)
-
-async_session_maker = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
 
 async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
 

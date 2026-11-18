@@ -11,7 +11,9 @@ import uvicorn
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.filters import Command
+from aiogram.fsm.storage.base import BaseStorage, DefaultKeyBuilder
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import Message
 from aiogram_dialog import (
     DialogManager,
@@ -26,10 +28,27 @@ from src.core import logger
 from src.core.config import config
 from src.web.app import app
 
-storage = MemoryStorage()
+
+def create_storage() -> BaseStorage:
+    """
+    Create FSM storage for dialog state.
+
+    Uses Redis when REDIS_URL is set, so dialog state survives restarts;
+    otherwise falls back to in-memory storage for local development.
+    aiogram-dialog requires a key builder with destiny enabled.
+    """
+    if config.REDIS_URL:
+        logger.info("🗄️ Dialog state storage: Redis")
+        return RedisStorage.from_url(config.REDIS_URL, key_builder=DefaultKeyBuilder(with_destiny=True))
+    logger.info("🗄️ Dialog state storage: in-memory (REDIS_URL is not set)")
+    return MemoryStorage()
+
+
+storage = create_storage()
 bot = Bot(
     token=config.BOT_TOKEN,
-    session=AiohttpSession(proxy=config.TELEGRAM_PROXY_URL),
+    # An empty proxy string is rejected by aiohttp-socks, so pass None when no proxy is configured
+    session=AiohttpSession(proxy=config.TELEGRAM_PROXY_URL or None),
 )
 dp = Dispatcher(storage=storage)
 dp.update.middleware(DatabaseMiddleware())
@@ -60,10 +79,9 @@ def run_fastapi(host: str = config.WEB_HOST, port: int = config.WEB_PORT) -> Non
         port: Port number to listen on. Defaults to config.WEB_PORT.
 
     """
-    uvicorn.run(app, host=host, port=port)
     try:
         logger.info("🚀 Launching the FastAPI server...")
-        uvicorn.run("src.web.app:app", host=config.WEB_HOST, port=config.WEB_PORT, reload=False)
+        uvicorn.run(app, host=host, port=port)
     except Exception as e:
         logger.critical(f"❌ Critical Error FastAPI: {e!r}", exc_info=True)
         raise
@@ -72,7 +90,7 @@ def run_fastapi(host: str = config.WEB_HOST, port: int = config.WEB_PORT) -> Non
 def run_telegram_bot() -> None:
     """Start polling for Telegram bot updates."""
     try:
-        logger.info("🤖 Launcing tg-bot...")
+        logger.info("🤖 Launching tg-bot...")
         dp.run_polling(bot, skip_updates=True)
     except Exception as e:
         logger.critical(f"❌ Critical error tg-bot: {e!r}", exc_info=True)
@@ -82,7 +100,7 @@ def run_telegram_bot() -> None:
 if __name__ == "__main__":
     logger.info("🔧 Initialization app...")
     logger.info(f"🌐 Configuration: WEB_HOST={config.WEB_HOST}, WEB_PORT={config.WEB_PORT}")
-    logger.info(f"🤖 Tg-bot launcing with token: {config.BOT_TOKEN[:5]}...")
+    logger.info(f"🤖 Tg-bot launching with token: {config.BOT_TOKEN[:5]}...")
 
     fastapi_process = multiprocessing.Process(target=run_fastapi)
     bot_process = multiprocessing.Process(target=run_telegram_bot)

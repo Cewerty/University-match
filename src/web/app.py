@@ -8,9 +8,10 @@ and REST API endpoints for user matching functionality.
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import ClassVar
+from http import HTTPStatus
+from typing import Any, ClassVar
 
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from sqladmin import Admin, ModelView
 
 from src.core import logger
@@ -19,32 +20,39 @@ from src.core.models import Faculty, Group, Interest, User
 
 from ..services.matcher import matcher_service
 
+INDEX_REFRESH_INTERVAL_SECONDS = 60
+
+
+async def rebuild_index() -> None:
+    """Rebuild the FAISS index once from the current database state."""
+    logger.debug("⏳ Обновление индекса...")
+    async with get_session() as session:
+        await matcher_service.update_index(session)
+
+    user_count = len(matcher_service.index_to_user_id) if matcher_service.index_to_user_id else 0
+    logger.info(f"✅ Индекс успешно обновлен. Всего пользователей: {user_count}")
+
 
 async def refresh_index_task(sleep_time: int) -> None:
     """
-    Background task to refresh the user matching index.
+    Rebuild the user matching index periodically.
 
-    Fetches current user data from database and updates the FAISS index
-    for similarity search.
+    Args:
+        sleep_time: Pause between rebuilds, in seconds. After a failure the
+            next attempt happens three times sooner.
+
     """
     while True:
         try:
-            logger.debug("⏳ Проверка необходимости обновления индекса...")
-            async with get_session() as session:
-                await matcher_service.update_index(session)
-
-            user_count = len(matcher_service.index_to_user_id) if matcher_service.index_to_user_id else 0
-            logger.info(f"✅ Индекс успешно обновлен. Всего пользователей: {user_count}")
-
+            await rebuild_index()
             await asyncio.sleep(sleep_time)
-
         except Exception as e:
             logger.error(f"❌ Ошибка в фоновой задаче обновления: {e!r}")
             logger.exception("🔄 Трейс ошибки фоновой задачи")
             await asyncio.sleep(sleep_time / 3)
 
 
-background_tasks = set()
+_running_tasks: set[asyncio.Task[None]] = set()
 
 
 @asynccontextmanager
@@ -63,10 +71,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     # --- STARTUP ---
     logger.info("Admin Panel Starting...")
-    task = asyncio.create_task(refresh_index_task(60))
-    background_tasks.add(task)
-    task.add_done_callback(background_tasks.discard)
-    logger.info("Admin Panel has been started and index refreshed!")
+    task = asyncio.create_task(refresh_index_task(INDEX_REFRESH_INTERVAL_SECONDS))
+    _running_tasks.add(task)
+    task.add_done_callback(_running_tasks.discard)
+    logger.info("Admin Panel has been started, index refresh is scheduled")
     yield
     # --- SHUTDOWN ---
     logger.info("Shutting down...")
@@ -214,12 +222,12 @@ async def force_reindex(background_tasks: BackgroundTasks) -> dict[str, str]:
         Dictionary with status message indicating index update started.
 
     """
-    background_tasks.add_task(refresh_index_task)
+    background_tasks.add_task(rebuild_index)
     return {"status": "Index update started in background"}
 
 
-@app.get("/search/{user_id}", response_model=None)
-async def search_users(user_id: int) -> dict[str, list[dict[str, str]]]:
+@app.get("/search/{user_id}")
+async def search_users(user_id: int) -> dict[str, list[dict[str, Any]]]:
     """
     Search for user matches based on interests similarity.
 
@@ -227,14 +235,14 @@ async def search_users(user_id: int) -> dict[str, list[dict[str, str]]]:
         user_id: ID of the user to find matches for.
 
     Returns:
-        Dictionary with search results or error message.
+        Dictionary with a "results" list of matches.
 
     Raises:
-        503: If matching service is not ready yet.
+        HTTPException: 503 if the matching index is not built yet.
 
     """
     if not matcher_service.is_ready:
-        return {"error": "System is warming up, please wait"}, 503
+        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="Index is warming up, please wait")
     async with get_session() as session:
         results = await matcher_service.search(user_id, session)
     return {"results": results}
