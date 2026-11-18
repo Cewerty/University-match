@@ -55,6 +55,28 @@ async def refresh_index_task(sleep_time: int) -> None:
 _running_tasks: set[asyncio.Task[None]] = set()
 
 
+def _mark_faculty(name: str) -> str:
+    """Return the faculty name as shown in the admin panel ("ФБ" gets a heart)."""
+    return name + "❤️" if name == "ФБ" else name
+
+
+# sqladmin passes the model instance as the first argument but annotates it as ``type``,
+# so the formatters below take ``Any`` to be able to read the instance's attributes.
+def _user_faculty(model: Any, attribute: Any) -> str:
+    """Format the faculty column of a user."""
+    return _mark_faculty(model.faculty.name)
+
+
+def _faculty_name(model: Any, attribute: Any) -> str:
+    """Format the name column of a faculty."""
+    return _mark_faculty(model.name)
+
+
+def _group_faculty(model: Any, attribute: Any) -> str:
+    """Format the faculty column of a group."""
+    return _mark_faculty(model.faculty.name)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
@@ -109,7 +131,7 @@ class UserAdmin(ModelView, model=User):
     column_sortable_list: ClassVar = [User.id]
 
     column_formatters: ClassVar = {
-        User.faculty: lambda m, a: m.faculty.name + "❤️" if m.faculty.name == "ФБ" else m.faculty.name,
+        User.faculty: _user_faculty,
     }
 
 
@@ -157,7 +179,7 @@ class FacultyAdmin(ModelView, model=Faculty):
     icon = "fa-solid fa-building-columns"
 
     column_formatters: ClassVar = {
-        Faculty.name: lambda m, a: m.name + "❤️" if m.name == "ФБ" else m.name,
+        Faculty.name: _faculty_name,
     }
 
     column_searchable_list: ClassVar = [Faculty.name]
@@ -185,7 +207,7 @@ class GroupAdmin(ModelView, model=Group):
     icon = "fa-solid fa-users"
 
     column_formatters: ClassVar = {
-        Group.faculty: lambda m, a: m.faculty.name + "❤️" if m.faculty.name == "ФБ" else m.faculty.name,
+        Group.faculty: _group_faculty,
     }
 
     column_sortable_list: ClassVar = [Group.name, Group.id]
