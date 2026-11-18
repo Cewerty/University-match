@@ -184,6 +184,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      # The vX.Y.Z tag created by this run, empty when nothing was released
+      tag: ${{ steps.tag.outputs.tag }}
     concurrency:
       group: release-main
       cancel-in-progress: false
@@ -222,3 +225,79 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           uvx --from python-semantic-release==10.7.0 semantic-release -v version
           uvx --from python-semantic-release==10.7.0 semantic-release -v publish
+
+      - name: Find the released tag
+        id: tag
+        if: steps.guard.outputs.skip != 'true'
+        run: echo "tag=$(git tag --points-at HEAD --list 'v*' | head -1)" >> "$GITHUB_OUTPUT"
+
+  # A separate job: a tag pushed with GITHUB_TOKEN does not start other workflows
+  publish-image:
+    needs: release
+    if: needs.release.outputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # append the image digest to the GitHub Release notes
+      packages: write      # push to ghcr.io
+      id-token: write      # sign the provenance attestation
+      attestations: write
+    env:
+      TAG: ${{ needs.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Image name
+        id: name
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "image=ghcr.io/${OWNER,,}/university-match" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ needs.release.outputs.tag }}
+            ${{ steps.name.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.release.outputs.tag }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+          # SBOM and full build provenance are attached to the image in the registry
+          sbom: true
+          provenance: mode=max
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.name.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Add the image to the release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ steps.name.outputs.image }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          ref="$IMAGE@$DIGEST"
+          echo "Published \`$ref\` ($TAG)" >> "$GITHUB_STEP_SUMMARY"
+          gh release view "$TAG" --json body --jq .body > "$RUNNER_TEMP/notes.md"
+          printf '\n### Docker image\n\n```bash\ndocker pull %s\n```\n\nVerify: `gh attestation verify oci://%s --owner %s`\n' \
+            "$ref" "$ref" "$OWNER" >> "$RUNNER_TEMP/notes.md"
+          gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
