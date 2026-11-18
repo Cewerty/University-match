@@ -1,0 +1,126 @@
+# Base configuration, also used in production:  docker compose -f compose.yaml up -d
+# For development compose.override.yaml is picked up automatically (dev image, watch).
+#
+# Start order: redis (healthy) + migrate + model-init (completed) -> web (healthy) -> bot
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-env: &env
+  DATABASE_URL: sqlite+aiosqlite:////app/data/bot.db
+  REDIS_URL: redis://redis:6379/0
+
+# Everything that runs the application image. The image is built once (by `web`),
+# the other services use the same tag and differ only in `command`.
+x-app: &app
+  image: university-match:latest
+  env_file: .env
+  environment: *env
+  volumes:
+    # SQLite database, shared by the bot and the web server
+    - ./data:/app/data
+    # Embedding model cache (~460 MB), so it is not downloaded on every container recreate
+    - hf-cache:/home/appuser/.cache/huggingface
+  # tini as PID 1: forwards signals and reaps child processes
+  init: true
+  restart: unless-stopped
+  logging: *logging
+
+services:
+  web:
+    <<: *app
+    build:
+      context: .
+      target: runtime
+    command: ["python", "main.py", "web"]
+    environment:
+      <<: *env
+      WEB_HOST: 0.0.0.0
+    ports:
+      - "8000:8000"
+    healthcheck:
+      # No curl in the slim image
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+      start_interval: 2s
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      model-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  bot:
+    <<: *app
+    command: ["python", "main.py", "bot"]
+    environment:
+      <<: *env
+      BACKEND_URL: http://web:8000
+    depends_on:
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # One-shot: apply database migrations before the app starts
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  # One-shot, like a Kubernetes init container: download the embedding model into the
+  # hf-cache volume, so `web` starts with the model already on disk
+  model-init:
+    <<: *app
+    command:
+      - python
+      - -c
+      - "from sentence_transformers import SentenceTransformer; from src.core.config import config; SentenceTransformer(config.EMBEDDING_MODEL)"
+    restart: "no"
+
+  # Test data, on demand only:  docker compose run --rm seed
+  seed:
+    <<: *app
+    command: ["python", "seed.py"]
+    restart: "no"
+    profiles: [tools]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+volumes:
+  redis-data:
+  hf-cache:
