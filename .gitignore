@@ -210,3 +210,6 @@ __marimo__/
 
 # Local tooling dumps
 codebase-dump.txt
+
+# Personal roadmap, kept locally
+ROADMAP.md

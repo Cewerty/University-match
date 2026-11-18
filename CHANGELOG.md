@@ -32,6 +32,8 @@
   ([`d4ec990`](https://github.com/Cewerty/University-match/commit/d4ec990e6053c2707fcacc91c54477e2d6aeaaf6))
 
 
-## v0.1.1 (2026-11-18)
+## v0.1.1 (2026-04-15)
 
-- Initial Release
+University prototype, as submitted. Built on 24-26 November 2025; the SOCKS5 proxy support and the
+expanded welcome dialog were added on 15 April 2026. Tagged and published as a release on
+18 November 2026, see the [v0.1.1 release notes](https://github.com/Cewerty/University-match/releases/tag/v0.1.1).
