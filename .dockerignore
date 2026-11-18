@@ -36,3 +36,4 @@ id_ed25519*
 *.sqlite3
 *.bak
 ROADMAP.md
+.trivyignore.yaml
