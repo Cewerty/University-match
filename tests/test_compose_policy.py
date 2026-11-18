@@ -129,3 +129,10 @@ def test_normalized_json_networks_are_understood() -> None:
     redis = _hardened(image="redis:7-alpine", networks={"backend": None})
 
     assert check(_config(redis=redis)) == []
+
+
+def test_limits_use_service_level_keys() -> None:
+    """Compose rejects `pids_limit` together with `deploy.resources.limits` ("can't set distinct values")."""
+    for name, service in _load("compose.yaml")["services"].items():
+        assert "deploy" not in service, name
+        assert "pids_limit" in service, name
