@@ -1,0 +1,6 @@
+# zizmor (workflows-lint.yml, `just workflows-lint`)
+rules:
+  # `uses: ./...` already resolves to the same commit as the calling workflow; the `$/...`
+  # syntax zizmor suggests instead is not understood by actionlint yet
+  self-repository:
+    disable: true
