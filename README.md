@@ -140,6 +140,7 @@ The same checks run in GitHub Actions on every push and pull request.
 ├── .github/workflows/          # CI: lint, tests, automated releases
 ├── scripts/ci/                 # release history check used by the Release workflow
 ├── src/
+│   ├── docs/adr/               # architecture decision records (template + ADRs)
 │   ├── bot/
 │   │   ├── dialogs/
 │   │   │   ├── register/       # registration flow: windows, handlers, getters
@@ -188,6 +189,8 @@ These need a decision from the institution, not a feature:
 - **Whether minors take part at all.** If the institution cannot take on moderation, the safe answer is an 18+ audience, for example a hackathon team finder.
 
 Until these are agreed in writing, the bot runs only on demo data.
+
+Design decisions behind these measures are recorded as ADRs in [`src/docs/adr`](src/docs/adr), starting with [ADR 0001: the bot only introduces people, no media or chat](src/docs/adr/0001-bot-only-introduces-no-media-or-chat.md).
 
 ## Limitations and next steps
 
