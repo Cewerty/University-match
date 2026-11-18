@@ -1,142 +1,192 @@
-# Telegram University Matcher Bot
+# University Match
 
-Intelligent university matching system with semantic search and Telegram integration
+[![Lint](https://github.com/Cewerty/University-match/actions/workflows/lint.yml/badge.svg)](https://github.com/Cewerty/University-match/actions/workflows/lint.yml)
+[![Tests](https://github.com/Cewerty/University-match/actions/workflows/tests.yml/badge.svg)](https://github.com/Cewerty/University-match/actions/workflows/tests.yml)
+[![Release](https://img.shields.io/github/v/release/Cewerty/University-match)](https://github.com/Cewerty/University-match/releases)
 
-## 🌟 Overview
+A Telegram bot that helps university students find people with similar interests.
+A student registers (contact, name, faculty, group, interests), and the bot suggests
+other students whose interests are semantically close, using sentence embeddings and a FAISS index.
 
-University Matcher Bot is a sophisticated matching system that connects university students based on shared interests and academic profiles using semantic search. Built with modern Python stack and deployed as a Telegram bot, this project demonstrates full-cycle development from database design to machine learning integration.
+Built solo in one week as a prototype for a university assignment.
 
-## 🚀 Features
+<!--
+## Demo
 
-### Core Functionality
+| Registration | Main menu | Matches | Match profile |
+|---|---|---|---|
+| ![Registration](docs/screenshots/registration.png) | ![Main menu](docs/screenshots/main-menu.png) | ![Matches](docs/screenshots/matches.png) | ![Match profile](docs/screenshots/match-profile.png) |
 
-- Smart Matching: Semantic search using FAISS index and Sentence Transformers
-- Telegram Integration: Intuitive bot interface for user registration and matching
-- Dynamic Profiling: Interest-based user profiles with adaptive recommendations
-- Admin Dashboard: Web interface for system monitoring and user management
+Admin panel (`/admin`):
 
-### Technical Highlights
+![Admin panel](docs/screenshots/admin.png)
+-->
 
-- Real-time Indexing: Background tasks for continuous FAISS index updates
-- Async Architecture: Full asynchronous stack with FastAPI and async database operations
-- Robust Error Handling: Comprehensive error monitoring
-- Secure Architecture: Environment-based configuration with sensitive data protection
+## How it works
 
-## 🛠 Technology Stack
-
-### Backend & API
-
-FastAPI (v0.100+) - High-performance async web framework
-SQLAlchemy (v2.0+) with AsyncPG - Modern ORM with async support
-Alembic (v1.17+) - Database migrations
-
-### Machine Learning
-
-Sentence-Transformers (v5.1+) - Semantic text embeddings
-FAISS-CPU - Efficient similarity search
-Transformers (v4.57+) - Hugging Face integration
-Numpy - Data processing
-
-### Infrastructure
-
-SQLite - Primary database
-Docker - Containerization
-
-## ⚡ Getting Started
-
-### Prerequisites
-
-- Python 3.11+
-- SQLite
-- Telegram Bot token (from @BotFather)
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/university-matcher-bot.git
-cd university-matcher-bot
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Linux/MacOS
-# .\.venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install uv
-uv pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your configuration
-
-# Run database migrations
-alembic upgrade head
-
-# Seed initial data (optional)
-python seed.py
-
-# Start the application
-python main.py
+```text
+Telegram ──► Bot process (aiogram-dialog, long polling)
+                 │  HTTP GET /search/{user_id}
+                 ▼
+             FastAPI process ──► UserMatcher (FAISS IndexFlatIP, in memory)
+                 │                    ▲ full rebuild every 60 s
+                 └──► SQLite (SQLAlchemy async) ◄── SQLAdmin at /admin
 ```
 
-### Running with Docker
+- `main.py` starts two processes with `multiprocessing`: the Telegram bot and the FastAPI app.
+- Registration and the main menu are `aiogram-dialog` state machines (`src/bot/states.py`).
+  A middleware opens a database session for every incoming update.
+  Dialog state is stored in Redis when `REDIS_URL` is set, otherwise in memory.
+  Dialog data holds only plain values: ORM objects are converted into immutable value objects
+  (`src/core/value_objects.py`) before they are stored.
+- For matching, a user's interests are joined into one string and encoded with
+  `paraphrase-multilingual-MiniLM-L12-v2` (sentence-transformers). The embeddings are L2-normalized
+  and stored in a FAISS `IndexFlatIP`, so the score is the cosine similarity of two users' interests,
+  from −1 to 1 (`src/services/matcher.py`).
+- A background task in the FastAPI process rebuilds the index from the database every 60 seconds
+  (`src/web/app.py`). Embedding and search run in `asyncio.to_thread`, so the event loop is not blocked.
+- The bot calls `/search/{user_id}` and shows matches whose score is above `MINIMAL_MATCH_VALUE` (0.45).
+- SQLAdmin provides a web UI for users, interests, faculties and groups.
+
+## Matching model and evaluation
+
+The first version used `all-MiniLM-L6-v2` with a FAISS L2 index and `score = 1 − distance`.
+That model is trained on English, while interests are entered in Russian, and the score had no fixed range,
+so the threshold was a guess. I switched to the multilingual `paraphrase-multilingual-MiniLM-L12-v2`
+with normalized embeddings and cosine similarity, and checked the change on seed data
+(200 users, 21 interests, fixed random seed). Two references were used: exact overlap of interests
+(Jaccard) and overlap of hand-labelled interest topics (IT, sport, art, leisure), which rewards
+understanding that "Python" and "Программирование" are related.
+
+| Setup | Spearman vs exact overlap | Spearman vs topic overlap | nDCG@5 exact | nDCG@5 topic |
+|---|---|---|---|---|
+| Old model, L2 (before) | 0.602 | 0.253 | **0.823** | 0.801 |
+| New model, L2, not normalized | 0.545 | 0.325 | 0.795 | 0.806 |
+| **New model, cosine (current)** | **0.632** | **0.419** | 0.809 | **0.819** |
+
+The topic correlation grew by two thirds. The new model alone, without normalization, was worse:
+the gain comes from the model and the cosine score together. Ranking by exact overlap became
+slightly worse (nDCG@5 0.823 → 0.809), which is expected: the old model rewarded identical words.
+
+The threshold `MINIMAL_MATCH_VALUE = 0.45` was chosen as the point that best separates pairs
+with and without shared interests (keeps 76% of the first, removes 81% of the second).
+
+## Tech stack
+
+- Python 3.12, [uv](https://docs.astral.sh/uv/)
+- [aiogram 3](https://docs.aiogram.dev/) + [aiogram-dialog](https://aiogram-dialog.readthedocs.io/)
+- [FastAPI](https://fastapi.tiangolo.com/) + [SQLAdmin](https://aminalaee.dev/sqladmin/)
+- [SQLAlchemy 2](https://docs.sqlalchemy.org/en/20/) (async, aiosqlite), [Alembic](https://alembic.sqlalchemy.org/)
+- [Redis](https://redis.io/) for dialog state (optional)
+- [sentence-transformers](https://www.sbert.net/), [faiss-cpu](https://github.com/facebookresearch/faiss)
+- loguru, ruff
+
+## Running locally
+
+Requirements: Python 3.12, uv, a bot token from [@BotFather](https://t.me/BotFather).
 
 ```bash
-# Build and start services
-docker-compose up --build
+git clone https://github.com/Cewerty/University-match.git
+cd University-match
+uv sync
 
-# Run migrations
-docker-compose run app alembic upgrade head
-
-# Seed initial data
-docker-compose run app python seed.py
+cp .env.example .env          # then set BOT_TOKEN
+uv run alembic upgrade head
+uv run python seed.py         # demo data: faculties, groups, interests, fake users
+uv run python main.py         # bot + FastAPI on :8000
 ```
 
-## Project Structure
+Then send `/start` to your bot. The admin panel is at <http://localhost:8000/admin>.
 
-```plain text
-university-matcher-bot/
+The embedding model (~460 MB) is downloaded on the first index build.
+
+All settings are read from `.env`; see [.env.example](.env.example).
+
+## Running with Docker
+
+```bash
+cp .env.example .env          # then set BOT_TOKEN
+mkdir -p data
+docker compose run --rm app .venv/bin/alembic upgrade head
+docker compose run --rm app .venv/bin/python seed.py
+docker compose up --build
+```
+
+Compose starts two containers: `app` (bot + FastAPI on :8000) and `redis` (dialog state).
+The SQLite database is kept in `./data`.
+
+## Development
+
+```bash
+uv run pytest                 # tests use a fake embedding model, no download
+uv run ruff check .
+uv run ruff format --check .
+```
+
+Install the git hooks once with `uv run pre-commit install`: they run ruff and check that
+commit messages follow Conventional Commits. Releases, tags and the changelog are automated;
+see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+The same checks run in GitHub Actions on every push and pull request.
+
+## Project structure
+
+```text
+.
+├── main.py                     # entry point: runs bot and FastAPI in two processes
+├── seed.py                     # fills the database with demo data (Faker, ru_RU)
+├── alembic/                    # database migrations
+├── tests/                      # pytest: matcher, repository, value objects, config, API
+├── .github/workflows/          # CI: lint, tests, automated releases
+├── scripts/ci/                 # release history check used by the Release workflow
 ├── src/
-│   ├── bot/                   # Telegram bot implementation
-│   │   ├── dialogs/           # Dialog flows and handlers
-│   │   ├── middleware/        # Bot middleware
-│   │   └── setup.py           # Bot initialization
-│   │
+│   ├── bot/
+│   │   ├── dialogs/
+│   │   │   ├── register/       # registration flow: windows, handlers, getters
+│   │   │   └── main_menu/      # profile, events, search and match screens
+│   │   ├── middlewares.py      # per-update database session
+│   │   └── states.py           # dialog state groups
+│   ├── core/
+│   │   ├── config.py           # settings from environment variables
+│   │   ├── database.py         # async engine and session factory
+│   │   ├── models.py           # User, Faculty, Group, Interest
+│   │   ├── value_objects.py    # UserProfile, MatchCandidate (serializable dialog data)
+│   │   └── logger.py           # loguru setup
 │   ├── services/
-│   │   ├── matcher.py         # RAG system core logic
-│   │   ├── database.py        # Database operations
-│   │   └── cache.py           # Caching layer
-│   │
-│   ├── models/                # Database models
-│   │   ├── user.py            # User model
-│   │   ├── interest.py        # Interest model
-│   │   └── match.py           # Match history model
-│   │
-│   ├── web/                   # FastAPI application
-│   │   ├── app.py             # Main application entrypoint
-│   │   ├── routes/            # API routes
-│   │   └── admin.py           # Admin dashboard
-│   │
-│   └── utils/                 # Utility functions
-│       ├── logger.py          # Logging configuration
-│       └── config.py          # Configuration management
-│
-├── alembic/                   # Database migrations
-├── tests/                     # Test suite
-├── data/                      # ML models and datasets
-├── docker/                    # Docker configurations
-├── seed.py                    # Database seed script
-├── main.py                    # Application entrypoint
-├── requirements.txt           # Python dependencies
-├── pyproject.toml             # Project configuration
-├── Dockerfile                 # Docker build instructions
-├── docker-compose.yml         # Docker Compose configuration
-└── .env.example               # Environment template
+│   │   ├── matcher.py          # embeddings + FAISS index and search
+│   │   └── repo.py             # database queries
+│   └── web/
+│       └── app.py              # FastAPI app, SQLAdmin views, /search endpoint
+├── Dockerfile, docker-compose.yml               # app + redis
+└── pyproject.toml
 ```
 
-## 🔗 Links & Resources
+## Limitations and next steps
 
-- Telegram Bot API Documentation
-- FastAPI Documentation
-- Sentence-Transformers Documentation
-- FAISS GitHub Repository
-- SQLAlchemy 2.0 Documentation
+This is a one-week prototype. Known issues and what I would do next:
+
+### Matching quality
+
+- The index lives in the memory of the FastAPI process and is fully rebuilt every 60 seconds.
+  That is fine for hundreds of users, not for a real university.
+
+### Architecture
+
+- SQLite is fine for a demo but not for concurrent writes.
+  Next step: PostgreSQL with pgvector, which would also replace the in-memory FAISS index.
+- Bot and FastAPI run as two processes of one container; the bot reaches the index over HTTP.
+
+### Product
+
+- A match's phone number is shown without a separate consent step.
+  Next step: ask for consent, or connect users via Telegram username instead.
+- The "Events" screen shows static placeholder text.
+
+### Code
+
+- Tests cover the core logic but not the Telegram dialogs end to end.
+- mypy is not part of CI yet: the codebase still has typing errors to clean up.
+
+## License
+
+[MIT](LICENSE)

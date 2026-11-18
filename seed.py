@@ -5,9 +5,9 @@ This module initializes a synchronous SQLAlchemy engine derived from the project
 DATABASE_URL (converted from async to sync), and populates the database with:
 - a predefined set of interests,
 - faculties and groups,
-- and 30 users with realistic Russian data using Faker (ru_RU).
+- and SEED_GENERATION_AMOUNT users (default 50) with realistic Russian data using Faker (ru_RU).
 
-If the database already contains 30 or more users, seeding is skipped.
+If the database already contains at least SEED_GENERATION_AMOUNT users, seeding is skipped.
 """
 
 import random
