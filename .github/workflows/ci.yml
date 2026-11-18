@@ -36,10 +36,11 @@ jobs:
         run: docker run --rm -i hadolint/hadolint:v2.15.1 < Dockerfile
 
       # Cheap, always runs: compose reads env_file, so it needs a .env to exist
-      - name: Validate the compose file
+      - name: Validate the compose files
         run: |
           cp .env.example .env
-          docker compose config --quiet
+          docker compose config --quiet                  # dev: compose.yaml + compose.override.yaml
+          docker compose -f compose.yaml config --quiet  # production: base file only
 
       # The image is heavy (torch), so build it only when something that goes into it changed
       - name: Detect changes that affect the image
@@ -53,7 +54,7 @@ jobs:
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             echo "No usable base commit: building the image."
             echo "build=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$base" HEAD -- Dockerfile .dockerignore docker-compose.yml pyproject.toml uv.lock .github/workflows/ci.yml | grep -q .; then
+          elif git diff --name-only "$base" HEAD -- Dockerfile .dockerignore compose.yaml compose.override.yaml main.py pyproject.toml uv.lock .github/workflows/ci.yml | grep -q .; then
             echo "Image inputs changed: building the image."
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
@@ -102,6 +103,13 @@ jobs:
         run: >
           docker run --rm -e BOT_TOKEN -e DATABASE_URL=sqlite+aiosqlite:////tmp/ci.db
           "$IMAGE" .venv/bin/alembic upgrade head
+
+      # compose.override.yaml builds the dev target; it reuses the builder layers above
+      - name: Build the dev target
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          docker build --target dev --tag university-match:dev .
+          docker run --rm university-match:dev sh -c 'ruff --version && mypy --version'
 
   # Runs only on main and only after every check above has passed
   release:

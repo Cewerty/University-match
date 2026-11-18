@@ -1,0 +1,40 @@
+# Development settings, merged over compose.yaml automatically by `docker compose up/watch`.
+# Production ignores this file:  docker compose -f compose.yaml up -d
+#
+#   docker compose watch    code changes are synced into the containers without a rebuild;
+#                           the image is rebuilt only when dependencies or the Dockerfile change
+
+x-dev-image: &dev-image
+  image: university-match:dev
+
+# The bot and the web server both get a build section, because `rebuild` in watch needs one.
+# The definitions are identical, so the second build is a cache hit.
+x-dev-build: &dev-build
+  <<: *dev-image
+  build:
+    context: .
+    target: dev
+  develop:
+    watch:
+      # Neither the bot (long polling) nor uvicorn reloads code by itself, so restart the process
+      - action: sync+restart
+        path: ./src
+        target: /app/src
+        ignore:
+          - "**/__pycache__/"
+      - action: sync+restart
+        path: ./main.py
+        target: /app/main.py
+      - action: rebuild
+        path: ./pyproject.toml
+      - action: rebuild
+        path: ./uv.lock
+      - action: rebuild
+        path: ./Dockerfile
+
+services:
+  web: *dev-build
+  bot: *dev-build
+  migrate: *dev-image
+  model-init: *dev-image
+  seed: *dev-image
