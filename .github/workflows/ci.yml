@@ -20,10 +20,62 @@ jobs:
   tests:
     uses: ./.github/workflows/tests.yml
 
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    env:
+      # Well-formed but fake: the image is only started far enough to import the app
+      BOT_TOKEN: "123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      IMAGE: university-match:ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Cheap, always runs: compose reads env_file, so it needs a .env to exist
+      - name: Validate the compose file
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      # The image is heavy (torch), so build it only when something that goes into it changed
+      - name: Detect changes that affect the image
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE_SHA"; else base="$PUSH_BEFORE_SHA"; fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "No usable base commit: building the image."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "$base" HEAD -- Dockerfile .dockerignore docker-compose.yml pyproject.toml uv.lock | grep -q .; then
+            echo "Image inputs changed: building the image."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing that goes into the image changed: skipping the build." >> "$GITHUB_STEP_SUMMARY"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the image
+        if: steps.changes.outputs.build == 'true'
+        run: docker build --tag "$IMAGE" .
+
+      - name: Smoke test, the application imports
+        if: steps.changes.outputs.build == 'true'
+        run: docker run --rm -e BOT_TOKEN "$IMAGE" .venv/bin/python -c "import main"
+
+      - name: Smoke test, migrations apply
+        if: steps.changes.outputs.build == 'true'
+        run: >
+          docker run --rm -e BOT_TOKEN -e DATABASE_URL=sqlite+aiosqlite:////tmp/ci.db
+          "$IMAGE" .venv/bin/alembic upgrade head
+
   # Runs only on main and only after every check above has passed
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, tests]
+    needs: [lint, tests, docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write
