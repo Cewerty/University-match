@@ -33,3 +33,21 @@ jobs:
 
       - name: Check formatting
         run: uv run --frozen --no-sync ruff format --check --diff .
+
+  mypy:
+    name: mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.16"
+          enable-cache: true
+
+      # Full install: mypy reads the type information of aiogram, SQLAlchemy and the other dependencies
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Type check
+        run: uv run --frozen --no-sync mypy

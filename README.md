@@ -121,10 +121,10 @@ The SQLite database is kept in `./data`.
 uv run pytest                 # tests use a fake embedding model, no download
 uv run ruff check .
 uv run ruff format --check .
+uv run mypy
 ```
 
-Install the git hooks once with `uv run pre-commit install`: they run ruff and check that
-commit messages follow Conventional Commits. Releases, tags and the changelog are automated;
+Install the git hooks once with `uv run pre-commit install`: ruff and the commit message check run on every commit, mypy before a push. Releases, tags and the changelog are automated;
 see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The same checks run in GitHub Actions on every push and pull request.
@@ -215,7 +215,6 @@ This is a one-week prototype. Known issues and what I would do next:
 ### Code
 
 - Tests cover the core logic but not the Telegram dialogs end to end.
-- mypy is not part of CI yet: the codebase still has typing errors to clean up.
 
 ## License
 
