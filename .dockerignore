@@ -37,3 +37,4 @@ id_ed25519*
 *.bak
 ROADMAP.md
 .trivyignore.yaml
+justfile

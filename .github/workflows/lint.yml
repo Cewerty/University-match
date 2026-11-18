@@ -11,6 +11,9 @@ jobs:
   ruff:
     name: ruff check + format
     runs-on: ubuntu-latest
+    env:
+      # `uv run` in the recipes must not re-sync the environment installed below
+      UV_NO_SYNC: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -19,23 +22,27 @@ jobs:
           version: "0.9.16"
           enable-cache: true
 
+      - uses: ./.github/actions/setup-just
+
       # Only the dev group (ruff, pytest): no torch/faiss needed to lint
       - name: Install dev tools
-        run: uv sync --frozen --only-dev
+        run: just sync-dev
 
       # Fails if pyproject.toml was changed without updating uv.lock
       - name: Check the lock file is up to date
-        run: uv lock --check
+        run: just lock-check
 
       - name: Lint
-        run: uv run --frozen --no-sync ruff check . --output-format=github
+        run: just lint --output-format=github
 
       - name: Check formatting
-        run: uv run --frozen --no-sync ruff format --check --diff .
+        run: just fmt-check
 
   mypy:
     name: mypy
     runs-on: ubuntu-latest
+    env:
+      UV_NO_SYNC: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -44,9 +51,11 @@ jobs:
           version: "0.9.16"
           enable-cache: true
 
+      - uses: ./.github/actions/setup-just
+
       # Full install: mypy reads the type information of aiogram, SQLAlchemy and the other dependencies
       - name: Install dependencies
-        run: uv sync --frozen
+        run: just sync
 
       - name: Type check
-        run: uv run --frozen --no-sync mypy
+        run: just typecheck
