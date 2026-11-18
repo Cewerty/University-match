@@ -1,0 +1,55 @@
+name: Release
+
+# Runs after the Tests workflow finishes on main. Releases only the commit the tests ran on.
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0 # all commits and tags are needed to compute the next version
+
+      - name: Skip if main moved past the tested commit
+        id: guard
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$(git rev-parse HEAD)" != "$TESTED_SHA" ]; then
+            echo "main is ahead of the tested commit $TESTED_SHA; the newer push will be released." >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: astral-sh/setup-uv@v6
+        if: steps.guard.outputs.skip != 'true'
+        with:
+          version: "0.9.16"
+
+      - name: Validate release history
+        if: steps.guard.outputs.skip != 'true'
+        run: python3 scripts/ci/validate_release_history.py
+
+      # No release is created if there are no feat/fix/perf commits since the last tag
+      - name: Version, changelog, tag and GitHub Release
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          uvx --from python-semantic-release==10.7.0 semantic-release -v version
+          uvx --from python-semantic-release==10.7.0 semantic-release -v publish

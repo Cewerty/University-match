@@ -1,0 +1,35 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    name: ruff check + format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.16"
+          enable-cache: true
+
+      # Only the dev group (ruff, pytest): no torch/faiss needed to lint
+      - name: Install dev tools
+        run: uv sync --frozen --only-dev
+
+      - name: Lint
+        run: uv run --frozen --no-sync ruff check . --output-format=github
+
+      - name: Check formatting
+        run: uv run --frozen --no-sync ruff format --check --diff .

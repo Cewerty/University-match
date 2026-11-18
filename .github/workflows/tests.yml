@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    env:
+      # Tests use a fake embedding model; fail loudly if anything tries to download one
+      HF_HUB_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.16"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check migrations match the models
+        env:
+          BOT_TOKEN: "123456:CI-TOKEN-NOT-REAL-AAAAAAAAAAAAAAAAAAAA"
+          DATABASE_URL: "sqlite+aiosqlite:///./ci.db"
+        run: |
+          uv run --frozen alembic upgrade head
+          uv run --frozen alembic check
+
+      - name: Run tests
+        run: uv run --frozen pytest -q
