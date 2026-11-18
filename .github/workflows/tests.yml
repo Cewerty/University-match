@@ -33,5 +33,12 @@ jobs:
           uv run --frozen alembic upgrade head
           uv run --frozen alembic check
 
-      - name: Run tests
-        run: uv run --frozen pytest -q
+      # Fails if coverage drops below fail_under in pyproject.toml
+      - name: Run tests with coverage
+        run: uv run --frozen pytest -q --cov --cov-report=term-missing
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "### Test coverage" >> "$GITHUB_STEP_SUMMARY"
+          uv run --frozen coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY" || true

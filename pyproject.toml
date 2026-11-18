@@ -108,6 +108,17 @@ pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+# Current coverage is about 71%; the threshold guards against a drop, raise it as tests are added
+fail_under = 67
+show_missing = true
+skip_empty = true
+
 [tool.alembic]
 script_location = "alembic"
 
@@ -145,6 +156,7 @@ dev = [
     "mypy>=1.18.2",
     "pre-commit>=4.7",
     "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
     "pytest>=9.0.1",
     "ruff>=0.14.5,<0.15",
 ]
