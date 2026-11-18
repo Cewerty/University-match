@@ -106,8 +106,9 @@ All settings are read from `.env`; see [.env.example](.env.example).
 ## Running with Docker
 
 ```bash
-cp .env.example .env          # then set BOT_TOKEN
-mkdir -p data
+cp .env.example .env          # non-secret settings; BOT_TOKEN here is ignored in Docker
+mkdir -p secrets
+printf '%s' 'YOUR_BOT_TOKEN' > secrets/bot_token   # must be readable by uid 10001 (mode 644)
 docker compose run --rm seed  # optional: demo data
 docker compose up --build
 ```
@@ -115,7 +116,13 @@ docker compose up --build
 Compose starts the services in order: `redis` (dialog state), the one-shot `migrate`
 (`alembic upgrade head`) and `model-init` (downloads the embedding model into the `hf-cache` volume),
 then `web` (FastAPI on :8000) once they finish, and `bot` once `web` answers its healthcheck.
-All of them use one image, built once. The SQLite database is kept in `./data`.
+All of them use one image, built once. The SQLite database is kept in the `app-data` volume:
+
+```bash
+docker compose cp web:/app/data/bot.db ./bot.db    # copy it out
+# move a database from the old ./data folder (runs as the app user, so it owns the copy)
+docker compose run --rm --no-deps -v "$PWD/data:/old:ro" migrate cp /old/bot.db /app/data/bot.db
+```
 
 Two files:
 
@@ -129,6 +136,17 @@ Two files:
 docker compose watch          # development loop
 docker compose run --rm migrate   # after adding a migration (rebuild first: docker compose build)
 ```
+
+### Container security
+
+- The app runs as uid 10001 without a home or shell; code and the virtual environment belong to root.
+- Every service has a read-only root filesystem with a `/tmp` tmpfs, drops all Linux capabilities
+  and runs with `no-new-privileges`. Writable are only the volumes: database, model cache, redis data.
+- The bot token is a Docker secret mounted only into `bot` (`BOT_TOKEN_FILE=/run/secrets/bot_token`);
+  `web`, `migrate` and the other services run without it. Secrets are never baked into the image:
+  `.env`, `secrets/`, keys and dumps are in `.dockerignore`, and CI checks the image layers.
+- Base images are pinned by digest and updated by Dependabot; every service has CPU, memory and
+  process limits. See [ADR 0004](src/docs/adr/0004-container-hardening.md).
 
 ## Development
 
