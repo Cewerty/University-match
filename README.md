@@ -147,6 +147,39 @@ docker compose run --rm migrate   # after adding a migration (rebuild first: doc
   `.env`, `secrets/`, keys and dumps are in `.dockerignore`, and CI checks the image layers.
 - Base images are pinned by digest and updated by Dependabot; every service has CPU, memory and
   process limits. See [ADR 0004](src/docs/adr/0004-container-hardening.md).
+- Networks: redis, web and bot share an internal `backend` network without internet access;
+  only bot (Telegram), model-init (Hugging Face) and web (its port) are on `edge`; migrate and
+  seed have no network. The web port is published on `127.0.0.1` only, because the admin panel
+  has no login yet: set `WEB_PUBLISH` or use a reverse proxy to expose it.
+- The default seccomp and AppArmor profiles stay on. `scripts/ci/check_compose_policy.py`
+  rejects privileged containers, unconfined profiles, host namespaces, the Docker socket and
+  ports open on all interfaces.
+- Release images are published to `ghcr.io/cewerty/university-match` with an SBOM and a signed
+  provenance attestation, scanned with Trivy in every build and rescanned weekly
+  ([rescan.yml](.github/workflows/rescan.yml)). A fixable CRITICAL/HIGH finding fails the run:
+  update the dependency (Dependabot or `uv lock --upgrade-package <name>`) and release a `fix`,
+  or accept it with a reason and an expiry date in [.trivyignore.yaml](.trivyignore.yaml).
+  See [ADR 0005](src/docs/adr/0005-network-isolation-and-image-scanning.md).
+
+### Deploying on a server
+
+Run the stack on a rootless container engine, so that even an escape from a container lands in
+an unprivileged host user. CI checks the image under rootless Podman.
+
+```bash
+# rootless Docker, as the user that will run the bot
+dockerd-rootless-setuptool.sh install
+docker compose -f compose.yaml pull     # or build
+docker compose -f compose.yaml up -d
+
+# or Podman: podman compose -f compose.yaml up -d
+```
+
+- `docker info` must list `seccomp` and `apparmor` (or `selinux`) under Security Options;
+  never run the stack with `--privileged` or `seccomp=unconfined`.
+- CPU and pids limits need cgroup v2 with delegation to the user (systemd `Delegate=yes`).
+- The user needs a subordinate uid range above 10001 in `/etc/subuid` (the default 65536 is enough).
+- Rootless engines cannot bind ports below 1024; the stack only uses 8000.
 
 ## Development
 
