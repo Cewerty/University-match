@@ -42,8 +42,15 @@ jobs:
         run: |
           cp .env.example .env
           mkdir -p secrets && printf '%s' "$BOT_TOKEN" > secrets/bot_token
-          docker compose config --quiet                  # dev: compose.yaml + compose.override.yaml
-          docker compose -f compose.yaml config --quiet  # production: base file only
+          docker compose config --format json > "$RUNNER_TEMP/compose.dev.json"                # with the override
+          docker compose -f compose.yaml config --format json > "$RUNNER_TEMP/compose.prod.json"  # production
+          python3 scripts/ci/check_compose_policy.py "$RUNNER_TEMP/compose.prod.json" "$RUNNER_TEMP/compose.dev.json"
+
+      # seccomp and AppArmor must be active on the host for the default profiles to apply
+      - name: Report the Docker host security options
+        run: |
+          echo "Docker security options: $(docker info --format '{{json .SecurityOptions}}')" | tee -a "$GITHUB_STEP_SUMMARY"
+          docker info --format '{{json .SecurityOptions}}' | grep -q seccomp
 
       # The image is heavy (torch), so build it only when something that goes into it changed
       - name: Detect changes that affect the image
@@ -116,6 +123,16 @@ jobs:
           && ! touch /app/probe 2>/dev/null
           && ! touch /app/main.py 2>/dev/null
           && echo "uid $(id -u): data and model cache writable, code read-only"'
+
+      # Seccomp 2 = filter mode (the default profile is applied), no capabilities, no privilege gain
+      - name: Smoke test, the default seccomp profile applies and no capabilities are left
+        if: steps.changes.outputs.build == 'true'
+        run: >
+          docker run --rm $HARDENED "$IMAGE" sh -c
+          'grep -E "^(Seccomp|NoNewPrivs|CapEff):" /proc/self/status
+          && grep -Eq "^Seccomp:[[:space:]]+2$" /proc/self/status
+          && grep -Eq "^NoNewPrivs:[[:space:]]+1$" /proc/self/status
+          && grep -Eq "^CapEff:[[:space:]]+0+$" /proc/self/status'
 
       # A fresh named volume, as in compose: it must take its ownership from the image
       - name: Smoke test, migrations apply to a named volume on a read-only root
