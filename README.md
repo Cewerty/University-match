@@ -1,7 +1,6 @@
 # University Match
 
-[![Lint](https://github.com/Cewerty/University-match/actions/workflows/lint.yml/badge.svg)](https://github.com/Cewerty/University-match/actions/workflows/lint.yml)
-[![Tests](https://github.com/Cewerty/University-match/actions/workflows/tests.yml/badge.svg)](https://github.com/Cewerty/University-match/actions/workflows/tests.yml)
+[![CI](https://github.com/Cewerty/University-match/actions/workflows/ci.yml/badge.svg)](https://github.com/Cewerty/University-match/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Cewerty/University-match)](https://github.com/Cewerty/University-match/releases)
 
 A Telegram bot that helps university students find people with similar interests.
@@ -137,8 +136,8 @@ The same checks run in GitHub Actions on every push and pull request.
 ├── seed.py                     # fills the database with demo data (Faker, ru_RU)
 ├── alembic/                    # database migrations
 ├── tests/                      # pytest: matcher, repository, value objects, config, API
-├── .github/workflows/          # CI: lint, tests, automated releases
-├── scripts/ci/                 # release history check used by the Release workflow
+├── .github/workflows/          # CI pipeline: lint, tests, release only after both pass
+├── scripts/ci/                 # release history check used by the release job
 ├── src/
 │   ├── docs/adr/               # architecture decision records (template + ADRs)
 │   ├── bot/
