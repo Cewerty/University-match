@@ -50,7 +50,7 @@ contact_window = Window(
 )
 
 second_name_window = Window(
-    Const("Input your second name."),
+    Const("Введи свою фамилию:"),
     MessageInput(
         func=on_second_name_received,
         content_types=ContentType.TEXT,
@@ -61,7 +61,7 @@ second_name_window = Window(
 )
 
 first_name_window = Window(
-    Const("Input your first name."),
+    Const("Введи своё имя:"),
     MessageInput(
         func=on_first_name_received,
         content_types=ContentType.TEXT,
@@ -72,11 +72,11 @@ first_name_window = Window(
 )
 
 surname_window = Window(
-    Const("Input your surname."),
+    Const("Введи своё отчество:"),
     MessageInput(
         func=on_surname_received,
         content_types=ContentType.TEXT,
-        id="first_name",
+        id="surname",
     ),
     MessageInput(on_other_messages),
     state=RegisterSM.surname,
