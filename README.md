@@ -161,6 +161,34 @@ The same checks run in GitHub Actions on every push and pull request.
 └── pyproject.toml
 ```
 
+## Safety and privacy
+
+The bot is meant for students of one institution, some of whom may be under 18.
+Before any real launch, these are the risks I considered and where each one stands.
+
+### Threat model
+
+| Risk | Example | Status |
+|---|---|---|
+| Fake identity via someone else's contact | A user forwards another person's contact card instead of sharing their own | **Done:** only a contact whose `user_id` matches the sender is accepted (tests in `tests/test_register_contact.py`) |
+| Harmful content inside the bot | Unwanted photos or messages | **Done by design:** the bot has no photos and no chat; it only introduces people, and interests are picked from a fixed list |
+| Contact shared without consent | A match card shows the phone number and full name right away | **Planned:** reveal contact only after both sides accept; before that show first name, faculty and shared interests only |
+| Outsiders registering | Anyone with Telegram can pick any faculty and group | **Planned:** join by a group invite code from the curator; later, if the institution agrees, verify the phone number against its student records (no passwords involved) |
+| Large age gap between matched users | An adult student matched with a 15-year-old first-year student | **Planned:** match only within the same course; this narrows the gap but does not guarantee it |
+| Abuse after an introduction | A user harasses their match outside the bot | **Planned:** report and block on every card; a moderator can ban users in the admin panel |
+| Personal data | Phone numbers stored in plain text | **Planned:** consent screen, "delete my data" command, keep only the data needed for matching |
+| Exposed internal API | `/search` and `/reindex` have no authentication | **Current rule:** the API and the admin panel are for local or private-network use only; publishing them needs authentication and HTTPS first |
+
+### What code cannot solve
+
+These need a decision from the institution, not a feature:
+
+- **Who operates the service.** The institution should be the data operator: it collects consent (for minors, from their legal representatives) and decides where the data is stored.
+- **Who moderates.** Reports are useless without a named person who reads them and rules for what happens next.
+- **Whether minors take part at all.** If the institution cannot take on moderation, the safe answer is an 18+ audience, for example a hackathon team finder.
+
+Until these are agreed in writing, the bot runs only on demo data.
+
 ## Limitations and next steps
 
 This is a one-week prototype. Known issues and what I would do next:
@@ -178,8 +206,7 @@ This is a one-week prototype. Known issues and what I would do next:
 
 ### Product
 
-- A match's phone number is shown without a separate consent step.
-  Next step: ask for consent, or connect users via Telegram username instead.
+- Contact details are shown without mutual consent; see [Safety and privacy](#safety-and-privacy).
 - The "Events" screen shows static placeholder text.
 
 ### Code
