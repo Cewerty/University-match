@@ -135,7 +135,9 @@ tag_format = "v{version}"
 allow_zero_version = true
 # While on 0.x, a breaking change bumps minor (0.2 -> 0.3); going to 1.0 is a manual decision
 major_on_zero = false
-build_command = ""
+# The release bumps project.version in pyproject.toml; refresh uv.lock in the same
+# release commit, otherwise `uv lock --check` in CI fails after every release
+build_command = "uv lock && git add uv.lock"
 
 [tool.semantic_release.branches.main]
 match = "main"
