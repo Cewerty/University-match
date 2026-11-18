@@ -154,7 +154,7 @@ async def create_user(  # noqa: PLR0913, PLR0917
     telegram_id: int,
     first_name: str,
     second_name: str,
-    surname: str,
+    surname: str | None,
     phone_number: str,
     faculty_id: int,
     group_id: int,
@@ -172,7 +172,7 @@ async def create_user(  # noqa: PLR0913, PLR0917
         telegram_id (int): Telegram ID of the user.
         first_name (str): First name.
         second_name (str): Last name (family name).
-        surname (str): Patronymic/middle name.
+        surname (str | None): Patronymic/middle name, if provided.
         phone_number (str): Phone number.
         faculty_id (int): Faculty identifier.
         group_id (int): Group identifier.

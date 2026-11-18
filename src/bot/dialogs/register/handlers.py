@@ -6,7 +6,7 @@ Contains functions that handle user actions during the registration process.
 
 from typing import Any
 
-from aiogram.types import CallbackQuery, Contact, KeyboardButton, Message
+from aiogram.types import CallbackQuery, KeyboardButton, Message
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.input import MessageInput
@@ -15,6 +15,7 @@ from aiogram_dialog.widgets.kbd import Button
 from ....core import logger
 from ....services.repo import create_user
 from ...backend import request_reindex
+from ...messaging import answer_in_chat
 from ...states import MainMenuSM
 
 
@@ -75,7 +76,8 @@ async def send_contact_request(callback: CallbackQuery, button: Button, manager:
     """
     builder = ReplyKeyboardBuilder()
     builder.add(KeyboardButton(text="Отправить мой номер", request_contact=True))
-    await callback.message.answer(
+    await answer_in_chat(
+        callback,
         "Нажми кнопку ниже, чтобы отправить свой номер:",
         reply_markup=builder.as_markup(resize_keyboard=True, one_time_keyboard=True),
     )
@@ -217,9 +219,9 @@ async def on_contact_received(message: Message, message_input: MessageInput, man
         manager (DialogManager): The dialog manager.
 
     """
-    contact: Contact = message.contact
+    contact = message.contact
     sender_id = message.from_user.id if message.from_user else None
-    if sender_id is None or contact.user_id != sender_id:
+    if contact is None or sender_id is None or contact.user_id != sender_id:
         logger.warning(f"⚠️ Отклонён чужой контакт от пользователя {sender_id}")
         await message.answer("Это не твой номер. Нажми кнопку «Отправить мой номер» и поделись своим контактом.")
         return
