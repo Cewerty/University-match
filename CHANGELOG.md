@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v0.2.3 (2026-11-18)
+
+### Bug Fixes
+
+- **bot**: Do not crash when a callback's message is no longer accessible
+  ([`c7df7eb`](https://github.com/Cewerty/University-match/commit/c7df7eb0f8a03cb16053e9915b372737befa7987))
+
+### Refactoring
+
+- Fix the logger return type and a missing return in seed.py
+  ([`f30fb98`](https://github.com/Cewerty/University-match/commit/f30fb9800c0e8b1638bba5d0deb78042ab2fa481))
+
+- **bot**: Fix type annotations of the registration getters
+  ([`e3a4960`](https://github.com/Cewerty/University-match/commit/e3a496049229fc4cc7fc15c8720346650aace275))
+
+- **bot**: Match the Multiselect callback signature
+  ([`41a0d7d`](https://github.com/Cewerty/University-match/commit/41a0d7dcbad55bf4aee82bc28cad811adf6c4eab))
+
+- **repo**: Return None explicitly and fix annotations
+  ([`b8815a0`](https://github.com/Cewerty/University-match/commit/b8815a0745d618edd6daa373e42511046721e9e9))
+
+- **web**: Type the admin column formatters
+  ([`892a751`](https://github.com/Cewerty/University-match/commit/892a75162116c3becd7dcf70f29e6239c149fe1d))
+
+
 ## v0.2.2 (2026-11-18)
 
 ### Bug Fixes

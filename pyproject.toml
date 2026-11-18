@@ -1,6 +1,6 @@
 [project]
 name = "university-match"
-version = "0.2.2"
+version = "0.2.3"
 description = "Telegram bot that matches university students by shared interests using sentence embeddings and FAISS"
 readme = "README.md"
 license = "MIT"
