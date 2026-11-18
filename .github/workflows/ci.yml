@@ -90,6 +90,10 @@ jobs:
           docker run --rm "$IMAGE" .venv/bin/python -c
           "import torch; assert not torch.cuda.is_available(); assert torch.__version__.endswith('+cpu'), torch.__version__; print(torch.__version__)"
 
+      - name: Smoke test, runs as a non-root user that can write its data
+        if: steps.changes.outputs.build == 'true'
+        run: docker run --rm "$IMAGE" sh -c 'test "$(id -u)" = 1000 && touch /app/data/probe /app/database.db && echo "uid $(id -u), writable"'
+
       - name: Smoke test, migrations apply
         if: steps.changes.outputs.build == 'true'
         run: >
