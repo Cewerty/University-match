@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 
-# Base image pinned by digest for reproducible builds; Dependabot keeps it up to date
-ARG PYTHON_IMAGE=python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
+# Base image pinned by digest for reproducible builds. It is written out in both FROM lines
+# (not via ARG) so that Dependabot can find and update it.
 
 # ---- builder: install dependencies into /app/.venv --------------------------------------
-FROM ${PYTHON_IMAGE} AS builder
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.16 /uv /usr/local/bin/uv
 
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project --no-compile
 
 # ---- runtime: only the virtual environment and the code ---------------------------------
-FROM ${PYTHON_IMAGE}
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
 
 # Create the user first, so files can be copied with the right owner
 # instead of a recursive chown that duplicates the whole layer
@@ -37,6 +37,7 @@ COPY --chown=appuser:appuser . .
 # Only the app directory itself (for the default SQLite file) and data/ need to be writable
 RUN mkdir -p /app/data && chown appuser:appuser /app /app/data
 
-USER appuser
+# Numeric id, so the host can resolve it without the image's /etc/passwd
+USER 1000:1000
 
 CMD ["/app/.venv/bin/python", "main.py"]
