@@ -49,9 +49,10 @@ so a release can never be published while any check is red:
 
 | Job | When | What |
 |---|---|---|
-| `lint` | always | `ruff check`, `ruff format --check`, `mypy` (defined in `lint.yml`) |
-| `tests` | always | `alembic upgrade head` + `alembic check`, `pytest` (defined in `tests.yml`) |
-| `release` | push to `main`, after `lint` and `tests` pass | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
+| `lint` | always | `uv lock --check`, `ruff check`, `ruff format --check`, `mypy` (defined in `lint.yml`) |
+| `tests` | always | `alembic upgrade head` + `alembic check`, `pytest` with a minimum coverage (defined in `tests.yml`) |
+| `docker` | always; the image is built only when the Dockerfile, compose file or dependencies change | `docker compose config`, then build the image and check that the app imports and migrations apply inside it |
+| `release` | push to `main`, after `lint`, `tests` and `docker` pass | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
 
 Versions are never bumped by hand. A push with only `docs`/`ci`/`chore`/... commits produces no release.
 Before releasing, `scripts/ci/validate_release_history.py` checks that the latest tag is still in
