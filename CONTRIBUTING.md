@@ -51,7 +51,7 @@ so a release can never be published while any check is red:
 |---|---|---|
 | `lint` | always | `uv lock --check`, `ruff check`, `ruff format --check`, `mypy` (defined in `lint.yml`) |
 | `tests` | always | `alembic upgrade head` + `alembic check`, `pytest` with a minimum coverage (defined in `tests.yml`) |
-| `docker` | always; the image is built only when the Dockerfile, compose files, `main.py` or dependencies change | hadolint and `docker compose config` (with and without the dev override), then build the image, check that the app imports and migrations apply inside it, and build the `dev` target |
+| `docker` | always; the image is built only when the Dockerfile, compose files, `main.py` or dependencies change | hadolint and `docker compose config` (with and without the dev override), then build the image; check that it runs as uid 10001, imports and applies migrations under the compose restrictions (read-only root, no capabilities) without the bot token, and carries no secrets; build the `dev` target |
 | `release` | push to `main`, after `lint`, `tests` and `docker` pass | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
 
 Versions are never bumped by hand. A push with only `docs`/`ci`/`chore`/... commits produces no release.
