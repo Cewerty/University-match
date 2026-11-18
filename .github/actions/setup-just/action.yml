@@ -4,11 +4,12 @@ description: Install the task runner used by justfile. The version is pinned her
 runs:
   using: composite
   steps:
-    # pipx is preinstalled on GitHub's Ubuntu runners; rust-just is the PyPI build of just
+    # pipx is preinstalled on GitHub's Ubuntu runners; rust-just is the PyPI build of just.
+    # --backend pip: pipx would otherwise use the uv from setup-uv, which it rejects as too old
     - name: Install just
       shell: bash
       env:
         JUST_VERSION: "1.46.0"
       run: |
-        pipx install "rust-just==$JUST_VERSION"
+        pipx install --backend pip "rust-just==$JUST_VERSION"
         just --version
