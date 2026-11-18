@@ -33,7 +33,8 @@ Telegram ──► Bot process (aiogram-dialog, long polling)
                  └──► SQLite (SQLAlchemy async) ◄── SQLAdmin at /admin
 ```
 
-- `main.py` starts two processes with `multiprocessing`: the Telegram bot and the FastAPI app.
+- `main.py` runs the Telegram bot (`main.py bot`), the FastAPI app (`main.py web`), or both
+  in two processes (no argument). In Docker they are separate containers.
 - Registration and the main menu are `aiogram-dialog` state machines (`src/bot/states.py`).
   A middleware opens a database session for every incoming update.
   Dialog state is stored in Redis when `REDIS_URL` is set, otherwise in memory.
@@ -107,13 +108,27 @@ All settings are read from `.env`; see [.env.example](.env.example).
 ```bash
 cp .env.example .env          # then set BOT_TOKEN
 mkdir -p data
-docker compose run --rm app .venv/bin/alembic upgrade head
-docker compose run --rm app .venv/bin/python seed.py
+docker compose run --rm seed  # optional: demo data
 docker compose up --build
 ```
 
-Compose starts two containers: `app` (bot + FastAPI on :8000) and `redis` (dialog state).
-The SQLite database is kept in `./data`.
+Compose starts the services in order: `redis` (dialog state), the one-shot `migrate`
+(`alembic upgrade head`) and `model-init` (downloads the embedding model into the `hf-cache` volume),
+then `web` (FastAPI on :8000) once they finish, and `bot` once `web` answers its healthcheck.
+All of them use one image, built once. The SQLite database is kept in `./data`.
+
+Two files:
+
+- `compose.yaml` is the base and production configuration: `docker compose -f compose.yaml up -d`.
+- `compose.override.yaml` is merged automatically in development. It builds the `dev` target
+  (the runtime image plus the dev dependency group) and configures `docker compose watch`: changes in `src/` and `main.py`
+  are synced into the containers and the process restarts, without a rebuild. The image is rebuilt
+  only when `pyproject.toml`, `uv.lock` or the `Dockerfile` change.
+
+```bash
+docker compose watch          # development loop
+docker compose run --rm migrate   # after adding a migration (rebuild first: docker compose build)
+```
 
 ## Development
 
@@ -133,7 +148,7 @@ The same checks run in GitHub Actions on every push and pull request.
 
 ```text
 .
-├── main.py                     # entry point: runs bot and FastAPI in two processes
+├── main.py                     # entry point: bot, FastAPI or both (`main.py bot|web`)
 ├── seed.py                     # fills the database with demo data (Faker, ru_RU)
 ├── alembic/                    # database migrations
 ├── tests/                      # pytest: matcher, repository, value objects, config, API
@@ -158,7 +173,9 @@ The same checks run in GitHub Actions on every push and pull request.
 │   │   └── repo.py             # database queries
 │   └── web/
 │       └── app.py              # FastAPI app, SQLAdmin views, /search endpoint
-├── Dockerfile, docker-compose.yml               # app + redis
+├── Dockerfile                  # targets: runtime (default) and dev
+├── compose.yaml                # web, bot, migrate, model-init, seed, redis
+├── compose.override.yaml       # dev image and `docker compose watch`
 └── pyproject.toml
 ```
 
