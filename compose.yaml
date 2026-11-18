@@ -17,6 +17,9 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+# Resource limits use the service-level keys (cpus, mem_limit, pids_limit): Compose rejects
+# pids_limit combined with a deploy.resources.limits block.
+#
 # Applied to every service: nothing in this stack needs to write outside its volumes,
 # needs Linux capabilities, or may gain privileges through setuid binaries
 x-hardening: &hardening
@@ -84,11 +87,8 @@ services:
         condition: service_completed_successfully
       model-init:
         condition: service_completed_successfully
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2g
+    cpus: "2"
+    mem_limit: 2g
 
   bot:
     <<: *app
@@ -107,11 +107,8 @@ services:
         condition: service_healthy
       web:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512m
+    cpus: "0.5"
+    mem_limit: 512m
 
   # One-shot: apply database migrations before the app starts
   migrate:
@@ -161,11 +158,8 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256m
+    cpus: "0.5"
+    mem_limit: 256m
 
 networks:
   backend:
