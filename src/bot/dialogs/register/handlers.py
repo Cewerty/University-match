@@ -74,9 +74,10 @@ async def send_contact_request(callback: CallbackQuery, button: Button, manager:
 
     """
     builder = ReplyKeyboardBuilder()
-    builder.add(KeyboardButton(text="Share Contact", request_contact=True))
+    builder.add(KeyboardButton(text="Отправить мой номер", request_contact=True))
     await callback.message.answer(
-        "Ваш контакт:", reply_markup=builder.as_markup(resize_keyboard=True, one_time_keyboard=True)
+        "Нажми кнопку ниже, чтобы отправить свой номер:",
+        reply_markup=builder.as_markup(resize_keyboard=True, one_time_keyboard=True),
     )
 
 
@@ -203,6 +204,10 @@ async def on_contact_received(message: Message, message_input: MessageInput, man
     """
     Handle a received contact message.
 
+    Accepts only the sender's own contact. A contact card can be forwarded or
+    attached by hand, but only the "share my number" button sets ``contact.user_id``
+    to the sender's id, so any other card is rejected and the step is repeated.
+
     Extracts the phone number from the Contact payload, stores it in dialog_data,
     and advances the dialog to the next step.
 
@@ -213,5 +218,11 @@ async def on_contact_received(message: Message, message_input: MessageInput, man
 
     """
     contact: Contact = message.contact
+    sender_id = message.from_user.id if message.from_user else None
+    if sender_id is None or contact.user_id != sender_id:
+        logger.warning(f"⚠️ Отклонён чужой контакт от пользователя {sender_id}")
+        await message.answer("Это не твой номер. Нажми кнопку «Отправить мой номер» и поделись своим контактом.")
+        return
+
     manager.dialog_data["phone_number"] = contact.phone_number
     await manager.next()
