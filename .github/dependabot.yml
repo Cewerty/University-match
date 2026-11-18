@@ -5,6 +5,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week after a release: most compromised or broken versions are pulled by then
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       python-dependencies:
@@ -19,6 +22,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week after a release: most compromised or broken versions are pulled by then
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       github-actions:
@@ -32,6 +38,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week after a release: most compromised or broken versions are pulled by then
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     commit-message:
       prefix: build
@@ -42,6 +51,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week after a release: most compromised or broken versions are pulled by then
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     commit-message:
       prefix: build

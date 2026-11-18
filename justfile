@@ -17,6 +17,9 @@ hardened := "--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privi
 # Pinned by digest; the same version is used in .github/workflows/rescan.yml
 trivy_image := "aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c"
 python := if os() == "windows" { "python" } else { "python3" }
+# Linters run with uvx at pinned versions (no project install needed)
+actionlint := "uvx --from actionlint-py==1.7.12.25 actionlint"
+zizmor := "uvx zizmor==1.32.0"
 
 [private]
 default:
@@ -96,6 +99,14 @@ check: lock-check lint fmt-check typecheck test
 [group('dev')]
 hooks:
     uv run pre-commit install
+
+# ---- the quality gate: workflows, configs, secrets, dependencies ---------------------
+
+# Lint the GitHub Actions workflows: syntax and shell (actionlint), security (zizmor, .github/zizmor.yml)
+[group('gate')]
+workflows-lint:
+    {{ actionlint }}
+    {{ zizmor }} --min-severity low .github/
 
 # ---- the application, without containers ---------------------------------------------
 
