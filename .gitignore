@@ -137,6 +137,8 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+# Docker secrets (compose.yaml: secrets/bot_token)
+secrets/
 .venv
 env/
 venv/

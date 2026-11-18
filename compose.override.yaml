@@ -11,6 +11,8 @@ x-dev-image: &dev-image
 # The definitions are identical, so the second build is a cache hit.
 x-dev-build: &dev-build
   <<: *dev-image
+  # watch writes synced files into /app; the rest of the hardening from compose.yaml stays
+  read_only: false
   build:
     context: .
     target: dev

@@ -2,6 +2,9 @@
 # For development compose.override.yaml is picked up automatically (dev image, watch).
 #
 # Start order: redis (healthy) + migrate + model-init (completed) -> web (healthy) -> bot
+#
+# The bot token is a Docker secret read from ./secrets/bot_token (see README), mounted
+# only into the bot. Other settings come from .env.
 
 x-logging: &logging
   driver: json-file
@@ -9,25 +12,40 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+# Applied to every service: nothing in this stack needs to write outside its volumes,
+# needs Linux capabilities, or may gain privileges through setuid binaries
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 512
+  logging: *logging
+
 x-env: &env
   DATABASE_URL: sqlite+aiosqlite:////app/data/bot.db
   REDIS_URL: redis://redis:6379/0
+  # Secrets never come from .env inside containers: only the bot gets them, from files
+  BOT_TOKEN: ""
+  TELEGRAM_PROXY_URL: ""
 
 # Everything that runs the application image. The image is built once (by `web`),
 # the other services use the same tag and differ only in `command`.
 x-app: &app
+  <<: *hardening
   image: university-match:latest
   env_file: .env
   environment: *env
   volumes:
     # SQLite database, shared by the bot and the web server
-    - ./data:/app/data
+    - app-data:/app/data
     # Embedding model cache (~460 MB), so it is not downloaded on every container recreate
-    - hf-cache:/home/appuser/.cache/huggingface
+    - hf-cache:/cache/huggingface
   # tini as PID 1: forwards signals and reaps child processes
   init: true
   restart: unless-stopped
-  logging: *logging
 
 services:
   web:
@@ -59,6 +77,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: "2"
           memory: 2g
 
   bot:
@@ -67,6 +86,11 @@ services:
     environment:
       <<: *env
       BACKEND_URL: http://web:8000
+      BOT_TOKEN_FILE: /run/secrets/bot_token
+      # Not a secret file: may be empty; taken from .env by compose interpolation
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
+    secrets:
+      - bot_token
     depends_on:
       redis:
         condition: service_healthy
@@ -75,6 +99,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: "0.5"
           memory: 512m
 
   # One-shot: apply database migrations before the app starts
@@ -104,12 +129,17 @@ services:
         condition: service_completed_successfully
 
   redis:
-    image: redis:7-alpine
-    command: redis-server --save 60 1 --loglevel warning
+    <<: *hardening
+    # Pinned by digest; Dependabot (docker-compose ecosystem) proposes updates
+    image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
+    # The image's redis user: started without root, the entrypoint skips chown and
+    # su-exec, so no capabilities are needed
+    user: "999:1000"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis-data:/data
     restart: unless-stopped
-    logging: *logging
+    pids_limit: 64
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -119,8 +149,14 @@ services:
     deploy:
       resources:
         limits:
+          cpus: "0.5"
           memory: 256m
 
+secrets:
+  bot_token:
+    file: ./secrets/bot_token
+
 volumes:
+  app-data:
   redis-data:
   hf-cache:
