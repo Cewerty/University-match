@@ -17,7 +17,7 @@ from ....services.repo import (
 from ...states import MainMenuSM
 
 
-async def get_faculties(**kwargs: dict[str, Any]) -> dict[str, Any]:
+async def get_faculties(**kwargs: Any) -> dict[str, Any]:
     """
     Fetch the list of faculties for UI display.
 
@@ -33,7 +33,7 @@ async def get_faculties(**kwargs: dict[str, Any]) -> dict[str, Any]:
     return {"faculties": [(str(f.id), f.name) for f in faculties]}
 
 
-async def get_faculty_groups(**kwargs: dict[str, Any]) -> dict[str : list[tuple[str, str]]]:
+async def get_faculty_groups(**kwargs: Any) -> dict[str, list[tuple[str, str]]]:
     """
     Fetch the list of groups for the selected faculty.
 
@@ -51,7 +51,7 @@ async def get_faculty_groups(**kwargs: dict[str, Any]) -> dict[str : list[tuple[
     return {"groups": [(str(f.id), f.name) for f in groups]}
 
 
-async def get_interests(**kwargs: dict[str, Any]) -> dict[str : list[tuple[str]]]:
+async def get_interests(**kwargs: Any) -> dict[str, list[tuple[str, str]]]:
     """
     Fetch the list of interests for user selection.
 
@@ -76,9 +76,13 @@ async def on_register_dialog_start(start_data: Any, manager: DialogManager) -> N
         manager (DialogManager): Dialog manager instance from aiogram_dialog.
 
     """
-    manager.dialog_data["user_id"] = manager.event.from_user.id
+    from_user = manager.event.from_user
+    if from_user is None:
+        return
+
+    manager.dialog_data["user_id"] = from_user.id
     session = manager.middleware_data["db_session"]
-    user = await get_user_by_telegram_id(session, manager.event.from_user.id)
+    user = await get_user_by_telegram_id(session, from_user.id)
     # TODO
     if user:
         await manager.done()
