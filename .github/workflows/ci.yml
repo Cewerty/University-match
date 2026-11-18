@@ -78,11 +78,17 @@ jobs:
             echo "|---|---|"
             echo "| Size | $(( size / 1024 / 1024 )) MiB |"
             echo "| Build time | ${BUILD_SECONDS} s |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Smoke test, the application imports
         if: steps.changes.outputs.build == 'true'
         run: docker run --rm -e BOT_TOKEN "$IMAGE" .venv/bin/python -c "import main"
+
+      - name: Smoke test, PyTorch is the CPU build
+        if: steps.changes.outputs.build == 'true'
+        run: >
+          docker run --rm "$IMAGE" .venv/bin/python -c
+          "import torch; assert not torch.cuda.is_available(); assert torch.__version__.endswith('+cpu'), torch.__version__; print(torch.__version__)"
 
       - name: Smoke test, migrations apply
         if: steps.changes.outputs.build == 'true'
