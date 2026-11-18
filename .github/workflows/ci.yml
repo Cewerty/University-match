@@ -35,10 +35,11 @@ jobs:
       - name: Lint the Dockerfile
         run: docker run --rm -i hadolint/hadolint:v2.15.1 < Dockerfile
 
-      # Cheap, always runs: compose reads env_file, so it needs a .env to exist
+      # Cheap, always runs: compose reads env_file and the secret file, so both must exist
       - name: Validate the compose files
         run: |
           cp .env.example .env
+          mkdir -p secrets && printf '%s' "$BOT_TOKEN" > secrets/bot_token
           docker compose config --quiet                  # dev: compose.yaml + compose.override.yaml
           docker compose -f compose.yaml config --quiet  # production: base file only
 
