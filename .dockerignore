@@ -19,3 +19,20 @@ tests/
 scripts/
 src/docs/
 .pre-commit-config.yaml
+
+# Secrets and anything that may hold them: never part of the build context
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+# Database dumps and copies
+*.sql
+*.dump
+*.sqlite
+*.sqlite3
+*.bak
+ROADMAP.md
