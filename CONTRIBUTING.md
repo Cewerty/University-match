@@ -4,10 +4,11 @@
 
 ```bash
 uv sync
-uv run pre-commit install   # installs the pre-commit and commit-msg hooks
+uv run pre-commit install   # installs the pre-commit, commit-msg and pre-push hooks
 ```
 
 The `pre-commit` hook runs `ruff check --fix` and `ruff format`.
+The `pre-push` hook runs `mypy` (slower, so not on every commit).
 The `commit-msg` hook checks the commit message format with Commitizen.
 
 ## Commit messages
@@ -45,7 +46,7 @@ moving to `1.0.0` is a deliberate manual decision (set `major_on_zero = true` in
 
 | Workflow | When | What |
 |---|---|---|
-| Lint | push to `main`, pull requests | `ruff check`, `ruff format --check` |
+| Lint | push to `main`, pull requests | `ruff check`, `ruff format --check`, `mypy` |
 | Tests | push to `main`, pull requests | `alembic upgrade head` + `alembic check`, `pytest` |
 | Release | after Tests succeed on `main` | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
 
