@@ -75,10 +75,8 @@ select = [
     "TRY",
     "ANN",
     "S",
-    "B",
     "D",
     "N",
-    "PL"
 ]
 fixable = ["ALL"]
 unfixable = []
