@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.models import User
-from src.services.repo import create_user, get_user_by_telegram_id
+from src.services.repo import create_user, delete_user_by_telegram_id, get_user_by_id, get_user_by_telegram_id
 
 
 def user_kwargs(catalog: dict[str, Any], **overrides: Any) -> dict[str, Any]:
@@ -48,3 +48,16 @@ async def test_create_user_updates_existing_user_instead_of_duplicating(
     assert user is not None
     assert user.first_name == "Пётр"
     assert [i.name for i in user.interests] == ["c"]
+
+
+async def test_lookups_return_none_for_unknown_user(session: AsyncSession) -> None:
+    assert await get_user_by_telegram_id(session, 404) is None
+    assert await get_user_by_id(session, 404) is None
+
+
+async def test_delete_user_reports_whether_anything_was_deleted(session: AsyncSession, catalog: dict[str, Any]) -> None:
+    await create_user(session, **user_kwargs(catalog))
+
+    assert await delete_user_by_telegram_id(session, 42) is True
+    assert await get_user_by_telegram_id(session, 42) is None
+    assert await delete_user_by_telegram_id(session, 42) is False
