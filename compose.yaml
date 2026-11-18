@@ -5,6 +5,11 @@
 #
 # The bot token is a Docker secret read from ./secrets/bot_token (see README), mounted
 # only into the bot. Other settings come from .env.
+#
+# Networks: `backend` is internal (no internet, not reachable from outside) and holds
+# redis, web and bot; `edge` gives internet access only to the services that need it
+# (bot: Telegram API, model-init: Hugging Face, web: the published port). migrate and
+# seed only touch SQLite in a volume and have no network at all.
 
 x-logging: &logging
   driver: json-file
@@ -57,8 +62,13 @@ services:
     environment:
       <<: *env
       WEB_HOST: 0.0.0.0
+      # model-init has already downloaded the model; web never calls Hugging Face
+      HF_HUB_OFFLINE: "1"
+    networks: [backend, edge]
     ports:
-      - "8000:8000"
+      # Only reachable from the host by default: the admin panel has no login yet.
+      # Expose it deliberately, e.g. WEB_PUBLISH=0.0.0.0:8000, or put a reverse proxy in front.
+      - "${WEB_PUBLISH:-127.0.0.1:8000}:8000"
     healthcheck:
       # No curl in the slim image
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=3)"]
@@ -91,6 +101,7 @@ services:
       TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
     secrets:
       - bot_token
+    networks: [backend, edge]
     depends_on:
       redis:
         condition: service_healthy
@@ -107,6 +118,7 @@ services:
     <<: *app
     command: ["alembic", "upgrade", "head"]
     restart: "no"
+    network_mode: none
 
   # One-shot, like a Kubernetes init container: download the embedding model into the
   # hf-cache volume, so `web` starts with the model already on disk
@@ -117,12 +129,14 @@ services:
       - -c
       - "from sentence_transformers import SentenceTransformer; from src.core.config import config; SentenceTransformer(config.EMBEDDING_MODEL)"
     restart: "no"
+    networks: [edge]
 
   # Test data, on demand only:  docker compose run --rm seed
   seed:
     <<: *app
     command: ["python", "seed.py"]
     restart: "no"
+    network_mode: none
     profiles: [tools]
     depends_on:
       migrate:
@@ -138,6 +152,7 @@ services:
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis-data:/data
+    networks: [backend]
     restart: unless-stopped
     pids_limit: 64
     healthcheck:
@@ -151,6 +166,11 @@ services:
         limits:
           cpus: "0.5"
           memory: 256m
+
+networks:
+  backend:
+    internal: true
+  edge:
 
 secrets:
   bot_token:
