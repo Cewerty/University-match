@@ -32,6 +32,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Lint the Dockerfile
+        run: docker run --rm -i hadolint/hadolint:v2.15.1 < Dockerfile
+
       # Cheap, always runs: compose reads env_file, so it needs a .env to exist
       - name: Validate the compose file
         run: |
