@@ -51,9 +51,14 @@ so a release can never be published while any check is red:
 |---|---|---|
 | `lint` | always | `uv lock --check`, `ruff check`, `ruff format --check`, `mypy` (defined in `lint.yml`) |
 | `tests` | always | `alembic upgrade head` + `alembic check`, `pytest` with a minimum coverage (defined in `tests.yml`) |
-| `docker` | always; the image is built only when the Dockerfile, compose files, `main.py` or dependencies change | hadolint and `docker compose config` (with and without the dev override), then build the image; check that it runs as uid 10001, imports and applies migrations under the compose restrictions (read-only root, no capabilities) without the bot token, and carries no secrets; build the `dev` target |
-| `release` | push to `main`, after `lint`, `tests` and `docker` pass | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
+| `changes` | always | decides whether the image has to be built: the Dockerfile, compose files, `main.py`, `.trivyignore.yaml` or dependencies changed |
+| `docker` | always; image checks only when `changes` says so | hadolint, `docker compose config` with and without the dev override, and the compose security policy (`scripts/ci/check_compose_policy.py`); then build the image, check that it runs as uid 10001 with the default seccomp profile, no capabilities and a read-only root, imports and applies migrations without the bot token, carries no secrets and has no fixable CRITICAL/HIGH vulnerabilities (Trivy); build the `dev` target |
+| `podman` | always; image checks only when `changes` says so | build and smoke-test the image under rootless Podman |
+| `release` | push to `main`, after `lint`, `tests`, `docker` and `podman` pass | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
+| `publish-image` | after a release | push `ghcr.io/<owner>/university-match:vX.Y.Z` and `:latest` with an SBOM and provenance, attest it and add the digest to the release notes |
 
 Versions are never bumped by hand. A push with only `docs`/`ci`/`chore`/... commits produces no release.
 Before releasing, `scripts/ci/validate_release_history.py` checks that the latest tag is still in
 the history of `main`, so a rewritten history cannot produce a wrong version.
+
+A separate workflow, `rescan.yml`, scans the newest three released images with Trivy every Monday and uploads the results to code scanning.
