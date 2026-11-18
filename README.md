@@ -84,17 +84,21 @@ with and without shared interests (keeps 76% of the first, removes 81% of the se
 
 ## Running locally
 
-Requirements: Python 3.12, uv, a bot token from [@BotFather](https://t.me/BotFather).
+Requirements: Python 3.12, [uv](https://docs.astral.sh/uv/), [just](https://just.systems) and a bot token from
+[@BotFather](https://t.me/BotFather). Every command below is a `just` recipe; `just` lists them all, and the
+[justfile](justfile) is the one place where the project's commands live (CI runs the same recipes).
+Install just with `winget install Casey.Just`, `brew install just` or `cargo install just`; on Windows the recipes
+need Git for Windows (they run in its `sh`).
 
 ```bash
 git clone https://github.com/Cewerty/University-match.git
 cd University-match
-uv sync
+just sync
 
 cp .env.example .env          # then set BOT_TOKEN
-uv run alembic upgrade head
-uv run python seed.py         # demo data: faculties, groups, interests, fake users
-uv run python main.py         # bot + FastAPI on :8000
+just migrate
+just seed                     # demo data: faculties, groups, interests, fake users
+just run                      # bot + FastAPI on :8000 (just bot / just web: one of them)
 ```
 
 Then send `/start` to your bot. The admin panel is at <http://localhost:8000/admin>.
@@ -107,10 +111,9 @@ All settings are read from `.env`; see [.env.example](.env.example).
 
 ```bash
 cp .env.example .env          # non-secret settings; BOT_TOKEN here is ignored in Docker
-mkdir -p secrets
-printf '%s' 'YOUR_BOT_TOKEN' > secrets/bot_token   # must be readable by uid 10001 (mode 644)
-docker compose run --rm seed  # optional: demo data
-docker compose up --build
+BOT_TOKEN=YOUR_BOT_TOKEN just secret-init   # writes secrets/bot_token, must be readable by uid 10001 (mode 644)
+just docker-seed              # optional: demo data
+just up                       # docker compose up --build
 ```
 
 Compose starts the services in order: `redis` (dialog state), the one-shot `migrate`
@@ -119,22 +122,22 @@ then `web` (FastAPI on :8000) once they finish, and `bot` once `web` answers its
 All of them use one image, built once. The SQLite database is kept in the `app-data` volume:
 
 ```bash
-docker compose cp web:/app/data/bot.db ./bot.db    # copy it out
-# move a database from the old ./data folder (runs as the app user, so it owns the copy)
-docker compose run --rm --no-deps -v "$PWD/data:/old:ro" migrate cp /old/bot.db /app/data/bot.db
+just db-export               # copy it out to ./bot.db
+just db-import                # move a database from the old ./data folder (runs as the app user, so it owns the copy)
 ```
 
 Two files:
 
-- `compose.yaml` is the base and production configuration: `docker compose -f compose.yaml up -d`.
+- `compose.yaml` is the base and production configuration: `just prod-up` (`docker compose -f compose.yaml up -d`).
 - `compose.override.yaml` is merged automatically in development. It builds the `dev` target
   (the runtime image plus the dev dependency group) and configures `docker compose watch`: changes in `src/` and `main.py`
   are synced into the containers and the process restarts, without a rebuild. The image is rebuilt
   only when `pyproject.toml`, `uv.lock` or the `Dockerfile` change.
 
 ```bash
-docker compose watch          # development loop
-docker compose run --rm migrate   # after adding a migration (rebuild first: docker compose build)
+just watch                   # development loop
+just docker-migrate           # after adding a migration (rebuild first: docker compose build)
+just logs web bot             # follow logs; just ps, just down
 ```
 
 ### Container security
@@ -184,13 +187,13 @@ docker compose -f compose.yaml up -d
 ## Development
 
 ```bash
-uv run pytest                 # tests use a fake embedding model, no download
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy
+just check                    # lock file, ruff, formatting, mypy and the tests: run before a commit
+just test                     # tests use a fake embedding model, no download; just test -k matcher
+just fix                      # ruff --fix and format
+just cov                      # tests with coverage
 ```
 
-Install the git hooks once with `uv run pre-commit install`: ruff and the commit message check run on every commit, mypy before a push. Releases, tags and the changelog are automated;
+Install the git hooks once with `just hooks`: ruff and the commit message check run on every commit, mypy before a push. Releases, tags and the changelog are automated;
 see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The same checks run in GitHub Actions on every push and pull request.
@@ -224,6 +227,7 @@ The same checks run in GitHub Actions on every push and pull request.
 │   │   └── repo.py             # database queries
 │   └── web/
 │       └── app.py              # FastAPI app, SQLAdmin views, /search endpoint
+├── justfile                    # all project commands (CI runs the same recipes)
 ├── Dockerfile                  # targets: runtime (default) and dev
 ├── compose.yaml                # web, bot, migrate, model-init, seed, redis
 ├── compose.override.yaml       # dev image and `docker compose watch`

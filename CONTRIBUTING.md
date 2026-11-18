@@ -2,13 +2,20 @@
 
 ## Setup
 
+Install [uv](https://docs.astral.sh/uv/) and [just](https://just.systems), then:
+
 ```bash
-uv sync
-uv run pre-commit install   # installs the pre-commit, commit-msg and pre-push hooks
+just sync
+just hooks                  # installs the pre-commit, commit-msg and pre-push hooks
+just check                  # lock file, ruff, formatting, mypy, tests: the same checks as CI
 ```
 
+`just` lists all recipes. The [justfile](justfile) is the single place for the project's commands:
+the CI workflows call its recipes (`just lint`, `just cov`, `just smoke`, ...) instead of repeating the commands,
+so change a command there and not in a workflow.
+
 The `pre-commit` hook runs `ruff check --fix` and `ruff format`.
-The `pre-push` hook runs `mypy` (slower, so not on every commit).
+The `pre-push` hook runs `just typecheck` (mypy; slower, so not on every commit).
 The `commit-msg` hook checks the commit message format with Commitizen.
 
 ## Commit messages
