@@ -29,6 +29,8 @@ jobs:
       IMAGE: university-match:ci
       # The restrictions compose.yaml applies to every service
       HARDENED: --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges
+      # Pinned by digest, like the other tool images; the same version is used in rescan.yml
+      TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,7 +66,7 @@ jobs:
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             echo "No usable base commit: building the image."
             echo "build=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$base" HEAD -- Dockerfile .dockerignore compose.yaml compose.override.yaml main.py pyproject.toml uv.lock .github/workflows/ci.yml | grep -q .; then
+          elif git diff --name-only "$base" HEAD -- Dockerfile .dockerignore .trivyignore.yaml compose.yaml compose.override.yaml main.py pyproject.toml uv.lock .github/workflows/ci.yml | grep -q .; then
             echo "Image inputs changed: building the image."
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
@@ -146,6 +148,27 @@ jobs:
           if docker history --no-trunc --format '{{.CreatedBy}}' "$IMAGE" | grep -Ei '(token|password|secret)[A-Z_]*='; then
             echo "a layer sets a secret-looking variable"; exit 1
           fi
+
+      # The full report goes to the job summary; the job fails only on CRITICAL/HIGH
+      # vulnerabilities that already have a fixed version (accepted ones: .trivyignore.yaml)
+      - name: Scan the image for vulnerabilities
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          docker save "$IMAGE" -o "$RUNNER_TEMP/image.tar"
+          trivy() {
+            docker run --rm -v "$RUNNER_TEMP:/scan" -v "$PWD/.trivyignore.yaml:/trivyignore.yaml:ro" \
+              -v trivy-cache:/root/.cache "$TRIVY_IMAGE" image --input /scan/image.tar --scanners vuln \
+              --ignorefile /trivyignore.yaml "$@"
+          }
+          trivy --format table --output /scan/trivy.txt
+          {
+            echo "### Vulnerabilities (all severities)"
+            echo '```'
+            head -c 500000 "$RUNNER_TEMP/trivy.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          trivy --skip-db-update --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --format table
+          rm -f "$RUNNER_TEMP/image.tar"
 
       # compose.override.yaml builds the dev target; it reuses the builder layers above
       - name: Build the dev target

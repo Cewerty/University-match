@@ -1,0 +1,14 @@
+# Accepted vulnerabilities for the Trivy scans in CI (ci.yml) and the weekly rescan (rescan.yml).
+#
+# Add an entry only when there is no fix yet that we can take, or the vulnerable code is
+# unreachable here. Every entry needs a reason and an expiry date: after `expired_at`
+# Trivy reports the vulnerability again, so the decision is revisited.
+#
+# vulnerabilities:
+#   - id: CVE-2026-00000
+#     paths:
+#       - "app/.venv/lib/python3.12/site-packages/somepackage-1.2.3.dist-info/METADATA"
+#     statement: The vulnerable function is not used; upstream fix is pending (link).
+#     expired_at: 2027-01-31
+
+vulnerabilities: []
