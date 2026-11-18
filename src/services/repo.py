@@ -33,14 +33,15 @@ async def get_user_by_telegram_id(db: AsyncSession, telegram_id: int) -> User | 
             select(User).where(User.telegram_id == telegram_id).options(selectinload(User.interests))
         )
         user = result.scalars().first()
-        if user:
-            logger.info(f"✅ Найден пользователь ID={user.id}, telegram_id={telegram_id}")
-            return user
-        else:
-            logger.warning(f"⚠️ Пользователь с telegram_id={telegram_id} не найден")
     except Exception as e:
         logger.error(f"❌ Ошибка при поиске пользователя по telegram_id={telegram_id}: {e!r}")
         raise
+
+    if user:
+        logger.info(f"✅ Найден пользователь ID={user.id}, telegram_id={telegram_id}")
+        return user
+    logger.warning(f"⚠️ Пользователь с telegram_id={telegram_id} не найден")
+    return None
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
@@ -59,14 +60,15 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
         logger.debug(f"🔍 Поиск пользователя по id: {user_id}")
         result = await db.execute(select(User).where(User.id == user_id).options(selectinload(User.interests)))
         user = result.scalars().first()
-        if user:
-            logger.info(f"✅ Найден пользователь ID={user.id}")
-            return user
-        else:
-            logger.warning(f"⚠️ Пользователь с id={user_id} не найден")
     except Exception as e:
         logger.error(f"❌ Ошибка при поиске пользователя по id={user_id}: {e!r}")
         raise
+
+    if user:
+        logger.info(f"✅ Найден пользователь ID={user.id}")
+        return user
+    logger.warning(f"⚠️ Пользователь с id={user_id} не найден")
+    return None
 
 
 async def get_faculty_by_id(db: AsyncSession, faculty_id: int) -> Faculty | None:
@@ -195,7 +197,7 @@ async def create_user(  # noqa: PLR0913, PLR0917
         existing_user.phone_number = phone_number
         existing_user.faculty_id = faculty_id
         existing_user.group_id = group_id
-        existing_user.interests = interests
+        existing_user.interests = list(interests)
 
         await db.commit()
         await db.refresh(existing_user)
@@ -238,7 +240,7 @@ async def update_user(db: AsyncSession, user: User, update_data: dict) -> User:
         if key == "interest_ids":
             interests_result = await db.execute(select(Interest).where(Interest.id.in_(value)))
             interests = interests_result.scalars().all()
-            user.interests = interests
+            user.interests = list(interests)
         elif hasattr(user, key):
             setattr(user, key, value)
 
@@ -247,7 +249,7 @@ async def update_user(db: AsyncSession, user: User, update_data: dict) -> User:
     return user
 
 
-async def delete_user_by_telegram_id(db: AsyncSession, telegram_id: int) -> User | bool:
+async def delete_user_by_telegram_id(db: AsyncSession, telegram_id: int) -> bool:
     """
     Delete a user by telegram_id.
 
