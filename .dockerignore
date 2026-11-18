@@ -12,3 +12,10 @@
 data/
 logs/
 codebase-dump.txt
+
+# Not needed at runtime
+tests/
+.github/
+scripts/
+src/docs/
+.pre-commit-config.yaml
