@@ -61,31 +61,19 @@ jobs:
             echo "build=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: docker/setup-buildx-action@v3
-        if: steps.changes.outputs.build == 'true'
-
-      - name: Start the build timer
-        if: steps.changes.outputs.build == 'true'
-        run: echo "BUILD_START=$(date +%s)" >> "$GITHUB_ENV"
-
-      # Layers are cached in GitHub Actions between runs; load the image to run the smoke tests
       - name: Build the image
+        id: build
         if: steps.changes.outputs.build == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          load: true
-          push: false
-          tags: ${{ env.IMAGE }}
-          provenance: false
-          sbom: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: |
+          start=$(date +%s)
+          docker build --tag "$IMAGE" .
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
 
       - name: Report image size and build time
         if: steps.changes.outputs.build == 'true'
+        env:
+          BUILD_SECONDS: ${{ steps.build.outputs.seconds }}
         run: |
-          BUILD_SECONDS=$(( $(date +%s) - BUILD_START ))
           size=$(docker image inspect --format '{{.Size}}' "$IMAGE")
           {
             echo "### Docker image"
