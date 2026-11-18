@@ -74,7 +74,11 @@ services:
       - "${WEB_PUBLISH:-127.0.0.1:8000}:8000"
     healthcheck:
       # No curl in the slim image
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=3)"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=3)"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -124,7 +128,10 @@ services:
     command:
       - python
       - -c
-      - "from sentence_transformers import SentenceTransformer; from src.core.config import config; SentenceTransformer(config.EMBEDDING_MODEL)"
+      - |
+        from sentence_transformers import SentenceTransformer
+        from src.core.config import config
+        SentenceTransformer(config.EMBEDDING_MODEL)
     restart: "no"
     networks: [edge]
 

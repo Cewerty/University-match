@@ -20,6 +20,9 @@ python := if os() == "windows" { "python" } else { "python3" }
 # Linters run with uvx at pinned versions (no project install needed)
 actionlint := "uvx --from actionlint-py==1.7.12.25 actionlint"
 zizmor := "uvx zizmor==1.32.0"
+hadolint := "uvx --from hadolint-py==2.15.1.3 hadolint"
+yamllint := "uvx yamllint==1.38.0"
+validate_pyproject := "uvx --from 'validate-pyproject[all]==0.27' validate-pyproject"
 
 [private]
 default:
@@ -107,6 +110,25 @@ hooks:
 workflows-lint:
     {{ actionlint }}
     {{ zizmor }} --min-severity low .github/
+
+# Lint the Dockerfile (hadolint)
+[group('gate')]
+lint-dockerfile:
+    {{ hadolint }} Dockerfile
+
+# Lint every YAML file: workflows, compose, Dependabot, pre-commit (.yamllint.yaml)
+[group('gate')]
+yamllint:
+    {{ yamllint }} --strict .
+
+# Check pyproject.toml against its schema, including the [tool.*] tables that have one
+[group('gate')]
+validate-pyproject:
+    {{ validate_pyproject }} pyproject.toml
+
+# All configuration linters
+[group('gate')]
+config-lint: lint-dockerfile yamllint validate-pyproject
 
 # ---- the application, without containers ---------------------------------------------
 
@@ -205,11 +227,6 @@ db-import dir="data":
     docker compose run --rm --no-deps -v "$PWD/{{ dir }}:/old:ro" migrate cp /old/bot.db /app/data/bot.db
 
 # ---- the image: build and checks (the `docker` and `podman` CI jobs) -----------------
-
-# Lint the Dockerfile
-[group('image')]
-lint-dockerfile:
-    docker run --rm -i hadolint/hadolint:v2.15.1 < Dockerfile
 
 # Build the production image
 [group('image')]

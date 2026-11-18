@@ -1,0 +1,22 @@
+# yamllint (config-lint.yml, `just yamllint`)
+extends: default
+
+ignore: |
+  .venv/
+  .git/
+  .ruff_cache/
+  .mypy_cache/
+  .pytest_cache/
+
+rules:
+  # Same limit as ruff
+  line-length:
+    max: 120
+  # GitHub Actions and Compose files are single documents
+  document-start: disable
+  # `on:` in workflows is a key, not a boolean
+  truthy:
+    check-keys: false
+  # `uses: ...@sha # v1.2.3`: one space before an inline comment is the convention there
+  comments:
+    min-spaces-from-content: 1
