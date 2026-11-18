@@ -50,7 +50,7 @@ jobs:
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             echo "No usable base commit: building the image."
             echo "build=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$base" HEAD -- Dockerfile .dockerignore docker-compose.yml pyproject.toml uv.lock | grep -q .; then
+          elif git diff --name-only "$base" HEAD -- Dockerfile .dockerignore docker-compose.yml pyproject.toml uv.lock .github/workflows/ci.yml | grep -q .; then
             echo "Image inputs changed: building the image."
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
@@ -59,8 +59,26 @@ jobs:
           fi
 
       - name: Build the image
+        id: build
         if: steps.changes.outputs.build == 'true'
-        run: docker build --tag "$IMAGE" .
+        run: |
+          start=$(date +%s)
+          docker build --tag "$IMAGE" .
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+
+      - name: Report image size and build time
+        if: steps.changes.outputs.build == 'true'
+        env:
+          BUILD_SECONDS: ${{ steps.build.outputs.seconds }}
+        run: |
+          size=$(docker image inspect --format '{{.Size}}' "$IMAGE")
+          {
+            echo "### Docker image"
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Size | $(( size / 1024 / 1024 )) MiB |"
+            echo "| Build time | ${BUILD_SECONDS} s |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Smoke test, the application imports
         if: steps.changes.outputs.build == 'true'
