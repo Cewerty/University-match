@@ -1,1 +1,4 @@
-Generic single-database configuration.
+Alembic migrations. The database URL is taken from DATABASE_URL (see src/core/config.py).
+
+Create a migration:  uv run alembic revision --autogenerate -m "message"
+Apply migrations:    uv run alembic upgrade head

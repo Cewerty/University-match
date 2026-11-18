@@ -8,9 +8,9 @@ for autogeneration of migrations.
 
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 from src.core.config import config
@@ -40,6 +40,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -57,7 +58,8 @@ def do_run_migrations(connection: Connection) -> None:
         connection (Connection): A synchronous SQLAlchemy connection.
 
     """
-    context.configure(connection=connection, target_metadata=target_metadata)
+    # SQLite cannot ALTER most constraints in place; batch mode recreates the table instead
+    context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=True)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -67,19 +69,11 @@ async def run_async_migrations() -> None:
     """
     Run migrations in asynchronous mode.
 
-    Creates an async engine from Alembic configuration, opens an async
-    connection, and delegates migration execution to a synchronous context via
-    connection.run_sync(do_run_migrations).
+    Creates an async engine for the application's DATABASE_URL (the same
+    database the bot uses), opens an async connection, and delegates migration
+    execution to a synchronous context via connection.run_sync(do_run_migrations).
     """
-    # Create the async engine.
-    connectable = AsyncEngine(
-        engine_from_config(
-            config_alembic.get_section(config_alembic.config_ini_section),
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-            future=True,
-        )
-    )
+    connectable = create_async_engine(config.DATABASE_URL, poolclass=pool.NullPool)
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
