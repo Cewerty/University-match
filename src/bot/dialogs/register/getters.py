@@ -76,7 +76,8 @@ async def on_register_dialog_start(start_data: Any, manager: DialogManager) -> N
         manager (DialogManager): Dialog manager instance from aiogram_dialog.
 
     """
-    from_user = manager.event.from_user
+    event = manager.event
+    from_user = getattr(event, "from_user", None)
     if from_user is None:
         return
 
