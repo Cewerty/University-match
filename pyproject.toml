@@ -15,6 +15,8 @@ dependencies = [
     "sqladmin>=0.21.0",
     "aiosqlite>=0.21.0",
     "sentence-transformers>=5.1.2",
+    # Direct dependency only so that [tool.uv.sources] below can pick the CPU build
+    "torch>=2.9.1,<2.10",
     "faiss-cpu>=1.13.0",
     "numpy>=2.3.5",
     "alembic>=1.17.2",
@@ -151,6 +153,17 @@ changelog_file = "CHANGELOG.md"
 
 [tool.semantic_release.publish]
 upload_to_vcs_release = true
+
+# The bot runs on CPU. On Linux (CI, Docker) take PyTorch from the CPU-only index:
+# the default PyPI build pulls several gigabytes of CUDA libraries. Windows and macOS
+# builds on PyPI are CPU-only already, so they are left as they are.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [dependency-groups]
 dev = [
