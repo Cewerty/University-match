@@ -34,41 +34,46 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ---- base: what runtime and dev share ---------------------------------------------------
 FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS base
 
-# Create the user first, so files can be copied with the right owner
-# instead of a recursive chown that duplicates the whole layer
-RUN useradd --create-home --uid 1000 appuser
+# System user with a uid outside the range of ordinary host users, no home and no shell
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --no-log-init --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app
 
-# The embedding model cache lives in a named volume (see compose.yaml)
+# The container runs with a read-only root filesystem (see compose.yaml), so:
+# no .pyc files next to the code, HOME points at the /tmp tmpfs for libraries that
+# write to ~, and the embedding model cache is a named volume at /cache/huggingface
 ENV PATH=/app/.venv/bin:$PATH \
-    HF_HOME=/home/appuser/.cache/huggingface
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HOME=/tmp \
+    HF_HOME=/cache/huggingface \
+    DATABASE_URL=sqlite+aiosqlite:////app/data/bot.db
+
+# The only writable places: the database and the model cache
+# (named volumes copy this ownership on first use)
+RUN mkdir -p /app/data "$HF_HOME" \
+    && chown app:app /app/data "$HF_HOME"
 
 # ---- dev: for `docker compose watch` and running checks in a container ------------------
 FROM base AS dev
 
 COPY --from=builder-dev /app/.venv /app/.venv
-COPY --chown=appuser:appuser . .
-RUN mkdir -p /app/data "$HF_HOME" \
-    && chown appuser:appuser /app /app/data "$HF_HOME"
+# Owned by the app user: `docker compose watch` syncs changed files into /app
+COPY --chown=10001:10001 . .
 
-USER 1000:1000
+USER 10001:10001
 
 CMD ["python", "main.py"]
 
 # ---- runtime: only the virtual environment and the code (default target) ----------------
 FROM base AS runtime
 
-# The virtual environment stays owned by root: the app only reads it
+# Code and the virtual environment stay owned by root: the app only reads them
 COPY --from=builder /app/.venv /app/.venv
-COPY --chown=appuser:appuser . .
-
-# Only the app directory itself (for the default SQLite file), data/ and the model
-# cache (a named volume copies this ownership on first use) need to be writable
-RUN mkdir -p /app/data "$HF_HOME" \
-    && chown appuser:appuser /app /app/data "$HF_HOME"
+COPY . .
 
 # Numeric id, so the host can resolve it without the image's /etc/passwd
-USER 1000:1000
+USER 10001:10001
 
 CMD ["/app/.venv/bin/python", "main.py"]
