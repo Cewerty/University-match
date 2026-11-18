@@ -1,36 +1,48 @@
-name: Release
+name: CI
 
-# Runs after the Tests workflow finishes on main. Releases only the commit the tests ran on.
 on:
-  workflow_run:
-    workflows: [Tests]
-    types: [completed]
+  push:
     branches: [main]
+  pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: release-main
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  # Never cancel runs on main: a cancelled release job could stop between the tag and the GitHub Release
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  # Runs only on main and only after every check above has passed
   release:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, tests]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-main
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0 # all commits and tags are needed to compute the next version
 
-      - name: Skip if main moved past the tested commit
+      - name: Skip if main moved past the checked commit
         id: guard
         env:
-          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          CHECKED_SHA: ${{ github.sha }}
         run: |
-          if [ "$(git rev-parse HEAD)" != "$TESTED_SHA" ]; then
-            echo "main is ahead of the tested commit $TESTED_SHA; the newer push will be released." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$(git rev-parse HEAD)" != "$CHECKED_SHA" ]; then
+            echo "main is ahead of the checked commit $CHECKED_SHA; the newer push will be released." >> "$GITHUB_STEP_SUMMARY"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 

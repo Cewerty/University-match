@@ -44,11 +44,14 @@ moving to `1.0.0` is a deliberate manual decision (set `major_on_zero = true` in
 
 ## CI and releases
 
-| Workflow | When | What |
+One workflow, `ci.yml`, runs on every push to `main` and every pull request. Its jobs depend on each other,
+so a release can never be published while any check is red:
+
+| Job | When | What |
 |---|---|---|
-| Lint | push to `main`, pull requests | `ruff check`, `ruff format --check`, `mypy` |
-| Tests | push to `main`, pull requests | `alembic upgrade head` + `alembic check`, `pytest` |
-| Release | after Tests succeed on `main` | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
+| `lint` | always | `ruff check`, `ruff format --check`, `mypy` (defined in `lint.yml`) |
+| `tests` | always | `alembic upgrade head` + `alembic check`, `pytest` (defined in `tests.yml`) |
+| `release` | push to `main`, after `lint` and `tests` pass | [python-semantic-release](https://python-semantic-release.readthedocs.io/): bumps the version in `pyproject.toml`, updates `CHANGELOG.md`, tags `vX.Y.Z` and publishes a GitHub Release |
 
 Versions are never bumped by hand. A push with only `docs`/`ci`/`chore`/... commits produces no release.
 Before releasing, `scripts/ci/validate_release_history.py` checks that the latest tag is still in
