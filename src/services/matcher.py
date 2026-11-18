@@ -10,7 +10,7 @@ similarity between two users' interest profiles, in the range [-1, 1].
 import asyncio
 from typing import Any
 
-import faiss  # type: ignore
+import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
