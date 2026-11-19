@@ -100,9 +100,17 @@ migrations-check:
     uv run --frozen alembic upgrade head
     uv run --frozen alembic check
 
-# Everything to run before a commit
+# Quick checks before a commit: lock file, ruff, formatting, mypy, tests
 [group('dev')]
 check: lock-check lint fmt-check typecheck test
+
+# The whole quality gate, in CI order, without Docker: run this before a pull request
+[group('dev')]
+gate: workflows-lint config-lint typos commits secrets lock-check lint fmt-check typecheck migrations-check cov deptry audit
+
+# The image part of the gate (needs Docker): build, smoke tests, vulnerability scan, dev target
+[group('dev')]
+gate-image: build smoke scan build-dev
 
 # Install the git hooks (pre-commit, commit-msg, pre-push)
 [group('dev')]
