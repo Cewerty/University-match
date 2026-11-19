@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.3.0 (2026-11-19)
+
+### Features
+
+- **core**: Read secrets from *_FILE and require the bot token only in the bot
+  ([`61742f9`](https://github.com/Cewerty/University-match/commit/61742f99887018fd3d1731fd51fa4a15517e3228))
+
+### Refactoring
+
+- Run the bot and the web server separately from main.py
+  ([`7b6a996`](https://github.com/Cewerty/University-match/commit/7b6a996d5394b937b43d9721ee501e14a3572a90))
+
+
 ## v0.2.3 (2026-11-18)
 
 ### Bug Fixes
