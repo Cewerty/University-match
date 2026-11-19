@@ -1,0 +1,6 @@
+# typos (conventions.yml, `just typos`): .gitignore'd files are skipped already
+[files]
+extend-exclude = [
+  "uv.lock",       # hashes and package names
+  "CHANGELOG.md",  # generated from commit messages, which are checked separately
+]

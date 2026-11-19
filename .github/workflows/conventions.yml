@@ -1,0 +1,64 @@
+name: Conventions
+
+# Reusable workflow: called by ci.yml.
+#   commits  Conventional Commits for every new commit (the commit-msg hook can be skipped
+#            with --no-verify; semantic-release computes versions from these messages)
+#   typos    spelling in code, comments, names and docs
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  commits:
+    name: commit messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.9.16"
+
+      - uses: ./.github/actions/setup-just
+
+      # Pull request: its commits. Push: the commits it added (only HEAD for a new branch).
+      - name: Check commit messages
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..$AFTER"
+          else
+            range="$AFTER~1..$AFTER"
+          fi
+          echo "Checking $range"
+          just commits "$range"
+
+  typos:
+    name: typos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.9.16"
+
+      - uses: ./.github/actions/setup-just
+
+      - name: Check spelling
+        run: just typos
