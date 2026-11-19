@@ -23,6 +23,9 @@ zizmor := "uvx zizmor==1.32.0"
 pip_audit := "uvx pip-audit==2.10.1"
 # Built with Go (installed locally and on GitHub runners); keep in sync with .pre-commit-config.yaml
 gitleaks := "go run github.com/zricethezav/gitleaks/v8@v8.30.1"
+# Keep in sync with the commitizen hook in .pre-commit-config.yaml
+commitizen := "uvx --from commitizen==4.19.3 cz"
+typos := "uvx typos==1.52.0"
 hadolint := "uvx --from hadolint-py==2.15.1.3 hadolint"
 yamllint := "uvx yamllint==1.38.0"
 validate_pyproject := "uvx --from 'validate-pyproject[all]==0.27' validate-pyproject"
@@ -132,6 +135,16 @@ validate-pyproject:
 # All configuration linters
 [group('gate')]
 config-lint: lint-dockerfile yamllint validate-pyproject
+
+# Conventional Commits in a range of commits: `just commits main..HEAD`
+[group('gate')]
+commits range="origin/main..HEAD":
+    {{ commitizen }} check --rev-range {{ range }}
+
+# Spelling in code, comments, names and docs (_typos.toml)
+[group('gate')]
+typos:
+    {{ typos }}
 
 # Secrets in the whole git history (the pre-commit hook sees only staged changes)
 [group('gate')]

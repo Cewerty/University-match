@@ -22,6 +22,10 @@ jobs:
     needs: workflows-lint
     uses: ./.github/workflows/secrets.yml
 
+  conventions:
+    needs: workflows-lint
+    uses: ./.github/workflows/conventions.yml
+
   # Each configuration is checked before the jobs that depend on it
   hadolint:
     needs: workflows-lint
@@ -232,7 +236,7 @@ jobs:
   # Runs only on main and only after every check above has passed
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [secrets, lint, tests, dependencies, docker, podman]
+    needs: [secrets, conventions, lint, tests, dependencies, docker, podman]
     runs-on: ubuntu-latest
     permissions:
       contents: write
