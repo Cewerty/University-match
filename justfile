@@ -21,6 +21,8 @@ python := if os() == "windows" { "python" } else { "python3" }
 actionlint := "uvx --from actionlint-py==1.7.12.25 actionlint"
 zizmor := "uvx zizmor==1.32.0"
 pip_audit := "uvx pip-audit==2.10.1"
+# Built with Go (installed locally and on GitHub runners); keep in sync with .pre-commit-config.yaml
+gitleaks := "go run github.com/zricethezav/gitleaks/v8@v8.30.1"
 hadolint := "uvx --from hadolint-py==2.15.1.3 hadolint"
 yamllint := "uvx yamllint==1.38.0"
 validate_pyproject := "uvx --from 'validate-pyproject[all]==0.27' validate-pyproject"
@@ -130,6 +132,11 @@ validate-pyproject:
 # All configuration linters
 [group('gate')]
 config-lint: lint-dockerfile yamllint validate-pyproject
+
+# Secrets in the whole git history (the pre-commit hook sees only staged changes)
+[group('gate')]
+secrets:
+    {{ gitleaks }} git --redact --no-banner --exit-code 1 .
 
 # Unused, missing and transitive dependencies: imports vs pyproject.toml ([tool.deptry])
 [group('gate')]

@@ -10,6 +10,12 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  # Secrets in staged changes; CI scans the whole history too (secrets.yml), since --no-verify skips this
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1 # keep in sync with gitleaks in the justfile
+    hooks:
+      - id: gitleaks
+
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.19.3
     hooks:
