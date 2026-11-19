@@ -187,7 +187,8 @@ docker compose -f compose.yaml up -d
 ## Development
 
 ```bash
-just check                    # lock file, ruff, formatting, mypy and the tests: run before a commit
+just check                    # quick: lock file, ruff, formatting, mypy and the tests
+just gate                     # the whole quality gate as in CI: run before a pull request
 just test                     # tests use a fake embedding model, no download; just test -k matcher
 just fix                      # ruff --fix and format
 just cov                      # tests with coverage
@@ -196,7 +197,9 @@ just cov                      # tests with coverage
 Install the git hooks once with `just hooks`: ruff and the commit message check run on every commit, mypy before a push. Releases, tags and the changelog are automated;
 see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-The same checks run in GitHub Actions on every push and pull request.
+The same checks run in GitHub Actions on every push and pull request: workflow and config linters, secrets,
+commit messages, typos, ruff, mypy, tests, dependency checks and the image checks. `just gate` runs all of
+them except the Docker part locally (`just gate-image` adds it); see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Project structure
 
