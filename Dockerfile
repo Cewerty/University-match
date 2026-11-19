@@ -8,7 +8,7 @@
 #   dev                            runtime + pytest/ruff/mypy, used by compose.override.yaml
 
 # ---- builder: install dependencies into /app/.venv --------------------------------------
-FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS builder
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9 AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.16 /uv /usr/local/bin/uv
 
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-compile
 
 # ---- base: what runtime and dev share ---------------------------------------------------
-FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS base
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9 AS base
 
 # System user with a uid outside the range of ordinary host users, no home and no shell
 RUN groupadd --system --gid 10001 app \
