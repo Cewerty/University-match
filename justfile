@@ -18,7 +18,8 @@ hardened := "--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privi
 trivy_image := "aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c"
 python := if os() == "windows" { "python" } else { "python3" }
 # Linters run with uvx at pinned versions (no project install needed)
-actionlint := "uvx --from actionlint-py==1.7.12.25 actionlint"
+# shellcheck-py: actionlint checks the shell in `run:` only when shellcheck is on PATH
+actionlint := "uvx --from actionlint-py==1.7.12.25 --with shellcheck-py==0.11.0.1 actionlint"
 zizmor := "uvx zizmor==1.32.0"
 pip_audit := "uvx pip-audit==2.10.1"
 # Built with Go (installed locally and on GitHub runners); keep in sync with .pre-commit-config.yaml

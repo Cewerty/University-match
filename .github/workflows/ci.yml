@@ -224,7 +224,8 @@ jobs:
       - name: Smoke test, not root on the host
         if: needs.changes.outputs.build == 'true'
         run: |
-          podman run -d --name probe $(just --evaluate hardened) "$IMAGE" python -c "import time; time.sleep(60)"
+          read -ra hardened <<< "$(just --evaluate hardened)"
+          podman run -d --name probe "${hardened[@]}" "$IMAGE" python -c "import time; time.sleep(60)"
           podman top probe user huser
           test "$(podman top probe huser | tail -n 1)" != root
           podman rm -f probe
@@ -356,6 +357,8 @@ jobs:
           ref="$IMAGE@$DIGEST"
           echo "Published \`$ref\` ($TAG)" >> "$GITHUB_STEP_SUMMARY"
           gh release view "$TAG" --json body --jq .body > "$RUNNER_TEMP/notes.md"
+          # The backticks are Markdown, not command substitution
+          # shellcheck disable=SC2016
           {
             printf '\n### Docker image\n\n```bash\ndocker pull %s\n```\n\n' "$ref"
             printf 'Verify: `gh attestation verify oci://%s --owner %s`\n' "$ref" "$OWNER"
